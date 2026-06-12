@@ -598,6 +598,7 @@ async function viewThread(id) {
       <div class="detail-row"><span class="detail-label">用户确认</span><span class="detail-value">${t.user_confirmed ? '是' : '否'}</span></div>
       <div class="detail-row"><span class="detail-label">来源会话</span><span class="detail-value">${esc(t.source_session)}</span></div>
       <div class="detail-row"><span class="detail-label">备注</span><span class="detail-value">${esc(t.notes)}</span></div>
+      <div class="detail-row"><span class="detail-label">情绪弧线</span><span class="detail-value">${renderEmotionalArc(t.emotional_arc||[])}</span></div>
       <div style="margin-top:16px">
         <button class="btn" onclick="loadThreads()">← 返回列表</button>
         <button class="btn" onclick="editThreadModal('${t.thread_id}')">编辑</button>
@@ -655,6 +656,18 @@ function interpretationLabel(status) {
     closed: '已关闭'
   })[status] || status || '有效';
 }
+
+function renderEmotionalArc(arc) {
+  if (!arc || !arc.length) return '<span style="color:var(--muted)">暂无</span>';
+  return '<div style="max-height:200px;overflow-y:auto;margin-top:4px">' +
+    arc.slice().reverse().map((e, i) => {
+      const time = (e.archived_at||'').slice(5, 19).replace('T', ' ');
+      return '<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:13px">' +
+        '<span style="color:var(--muted)">' + esc(time) + '</span> ' +
+        '<span>' + esc(e.position||'') + '</span></div>';
+    }).join('') + '</div>';
+}
+
 
 async function closeThread(id) {
   if (!confirm('确定关闭这条对话线？')) return;
