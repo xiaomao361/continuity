@@ -1,4 +1,4 @@
-# Continuity v1 Design
+# Continuity v1.2 Design
 
 Continuity v1 是 ClaraCore 里的小型状态续接系统。
 
@@ -97,6 +97,7 @@ Session Thread 是一条可续接的对话线或工作线。
 - `interpretation_status`
 - `user_confirmed`
 - `source_session`
+- `emotional_arc`
 
 多条线可以同时存在。比如工程讨论、陪伴聊天、长期规划、代码调试，都可以是不同
 的 Session Thread。
@@ -108,6 +109,12 @@ Session Thread 是一条可续接的对话线或工作线。
 
 `visibility` 默认为 `private`。只有标记为 `shared` 的线，才允许其他 Agent 在
 显式请求 shared 状态时看到。
+
+`emotional_arc` 是本线的情绪弧线（JSON 数组）。每次 `capture` 更新
+`last_position` 时，旧值自动归档为 `{position, archived_at}` 条目。
+相同 position 不会重复归档。Agent 也可通过 `--emotional-arc-entry`
+显式追加不改变 position 的情绪节点。SessionStart 时完整弧线注入
+Context，Agent 能看到全天的情绪轨迹，而不是只有最后一条位置。
 
 更新已有 Thread 时也必须先通过 Agent 范围校验。普通 Agent 不应该用全局视图去
 修改其他 Agent 的私有线。

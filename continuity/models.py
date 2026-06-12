@@ -52,6 +52,7 @@ class SessionThread:
     tags: list = field(default_factory=list)
     notes: str = ""
     updated_by: str = "agent"
+    emotional_arc: list = field(default_factory=list)
 
 
 @dataclass

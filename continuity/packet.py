@@ -61,11 +61,13 @@ def build_packet(
     current_interpretation = ""
     interpretation_status = ""
     user_confirmed = False
+    emotional_arc = []
     if thread:
         facts_used = thread.get("facts_used", []) or []
         current_interpretation = thread.get("current_interpretation", "") or ""
         interpretation_status = thread.get("interpretation_status", "") or ""
         user_confirmed = bool(thread.get("user_confirmed", False))
+        emotional_arc = thread.get("emotional_arc", []) or []
 
     # Deduplicate warnings
     seen = set()
@@ -88,6 +90,7 @@ def build_packet(
         "current_interpretation": current_interpretation,
         "interpretation_status": interpretation_status,
         "user_confirmed": user_confirmed,
+        "emotional_arc": emotional_arc,
         "boundary_notice": (
             "Continuity fields describe the current position for this session. "
             "They are not durable facts. Write back to Memoria only when the "

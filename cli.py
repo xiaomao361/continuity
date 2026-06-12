@@ -97,6 +97,19 @@ def cmd_capture(args):
             updates["notes"] = args.notes
         if args.visibility is not None:
             updates["visibility"] = args.visibility
+        # Explicit emotional arc entry (manual append, not auto-archive)
+        if args.emotional_arc_entry is not None:
+            existing_arc = existing.get("emotional_arc", []) or []
+            if isinstance(existing_arc, str):
+                try:
+                    existing_arc = json.loads(existing_arc)
+                except (json.JSONDecodeError, TypeError):
+                    existing_arc = []
+            existing_arc.append({
+                "position": args.emotional_arc_entry,
+                "archived_at": now_iso()
+            })
+            updates["emotional_arc"] = existing_arc
         updates["last_active_at"] = now_iso()
         updates["updated_by"] = args.actor
         result = db.update_thread(args.thread_id, actor=args.actor, **updates)
@@ -608,6 +621,8 @@ def main():
     p_capture.add_argument("--source-session", help="Source session identifier")
     p_capture.add_argument("--tags", help="Comma-separated tags")
     p_capture.add_argument("--notes", help="Additional notes")
+    p_capture.add_argument("--emotional-arc-entry",
+                           help="Append an emotional moment to the arc (without changing last_position)")
     p_capture.add_argument("--actor", default="agent", help="Who is performing this action")
     _add_agent_args(p_capture, visibility=True, filters=True)
 

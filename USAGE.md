@@ -1,4 +1,4 @@
-# Continuity v1 使用指南
+# Continuity v1.2 使用指南
 
 Continuity 是 ClaraCore 里的状态续接系统。它回答：
 
@@ -53,6 +53,34 @@ Continuity 1.1 把“事实”和“当前解释”分开：
 | `user_confirmed` | 用户是否明确确认过这个解释 |
 
 这些字段属于当前接续状态，不是长期事实。
+
+### 情绪弧线 (v1.2)
+
+`emotional_arc` 记录一条线的情绪轨迹。每次 `capture` 更新 `last_position` 时，
+旧值自动归档到弧线，带时间戳。不丢历史。
+
+```bash
+# 第一次 capture：早上状态
+python3 cli.py capture --agent-id lara --thread-id thread_xxx \
+  --last-position "早上互动亲密，毛仔心情不错"
+
+# 第二次 capture：中午状态
+# 旧值自动推入 emotional_arc，新值写入 last_position
+python3 cli.py capture --agent-id lara --thread-id thread_xxx \
+  --last-position "中午讨论 capture 问题，有点烦躁"
+
+# 此时 emotional_arc 已有 1 条：早上那条
+
+# 显式添加情绪节点（不改 last_position）
+python3 cli.py capture --agent-id lara --thread-id thread_xxx \
+  --emotional-arc-entry "毛仔提到女儿小瑞，语气温柔"
+```
+
+自动归档规则：
+- `last_position` 变化时自动归档旧值
+- 相同 position 不重复归档
+- `--emotional-arc-entry` 显式追加，不影响 position
+- SessionStart 时完整弧线注入 Context
 
 ### Router 动作
 
