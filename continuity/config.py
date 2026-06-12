@@ -1,6 +1,7 @@
 """Configuration and path resolution."""
 
 import os
+from typing import Optional
 
 
 def get_continuity_root() -> str:
@@ -8,12 +9,12 @@ def get_continuity_root() -> str:
     return os.environ.get("CONTINUITY_ROOT", os.path.expanduser("~/.claracore/continuity"))
 
 
-def get_default_agent_id() -> str | None:
+def get_default_agent_id() -> Optional[str]:
     """Resolve current agent namespace from env. Returns None if not set."""
     return os.environ.get("CONTINUITY_AGENT_ID")
 
 
-def require_agent_id(explicit: str | None = None) -> str:
+def require_agent_id(explicit: Optional[str] = None) -> str:
     """Resolve agent ID with explicit override. Raises if neither set."""
     agent_id = explicit or get_default_agent_id()
     if not agent_id:
