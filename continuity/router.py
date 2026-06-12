@@ -40,6 +40,10 @@ def route(
             "last_position": thread["last_position"],
             "next_step": thread["next_step"],
             "state_summary": thread["state_summary"],
+            "facts_used": thread.get("facts_used", []),
+            "current_interpretation": thread.get("current_interpretation", ""),
+            "interpretation_status": thread.get("interpretation_status", "active"),
+            "user_confirmed": bool(thread.get("user_confirmed", False)),
         }
         state_source = topic_source  # Same source for both
 
@@ -64,6 +68,10 @@ def route(
             "last_position": thread["last_position"],
             "next_step": thread["next_step"],
             "state_summary": thread["state_summary"],
+            "facts_used": thread.get("facts_used", []),
+            "current_interpretation": thread.get("current_interpretation", ""),
+            "interpretation_status": thread.get("interpretation_status", "active"),
+            "user_confirmed": bool(thread.get("user_confirmed", False)),
             "fork_note": "This is a FORK — a new thread will be created for this session."
         }
         state_source = topic_source
@@ -86,6 +94,10 @@ def route(
                     "last_position": topic_thread["last_position"],
                     "next_step": topic_thread["next_step"],
                     "state_summary": topic_thread["state_summary"],
+                    "facts_used": topic_thread.get("facts_used", []),
+                    "current_interpretation": topic_thread.get("current_interpretation", ""),
+                    "interpretation_status": topic_thread.get("interpretation_status", "active"),
+                    "user_confirmed": bool(topic_thread.get("user_confirmed", False)),
                 }
             else:
                 warnings.append(f"Topic thread '{topic_thread_id}' not found")
@@ -129,6 +141,10 @@ def route(
                     "last_position": thread["last_position"],
                     "next_step": thread["next_step"],
                     "state_summary": thread["state_summary"],
+                    "facts_used": thread.get("facts_used", []),
+                    "current_interpretation": thread.get("current_interpretation", ""),
+                    "interpretation_status": thread.get("interpretation_status", "active"),
+                    "user_confirmed": bool(thread.get("user_confirmed", False)),
                 }
                 state_source = None
                 warnings.append(f"Reset: continuing topic '{thread['topic']}' with fresh state.")

@@ -57,6 +57,15 @@ def build_packet(
         posture_parts.append(f"From thread: {thread['state_summary']}")
 
     next_response_posture = " | ".join(posture_parts) if posture_parts else ""
+    facts_used = []
+    current_interpretation = ""
+    interpretation_status = ""
+    user_confirmed = False
+    if thread:
+        facts_used = thread.get("facts_used", []) or []
+        current_interpretation = thread.get("current_interpretation", "") or ""
+        interpretation_status = thread.get("interpretation_status", "") or ""
+        user_confirmed = bool(thread.get("user_confirmed", False))
 
     # Deduplicate warnings
     seen = set()
@@ -75,6 +84,15 @@ def build_packet(
         "agent_state": agent_state,
         "thread": thread,
         "snapshot": snapshot,
+        "facts_used": facts_used,
+        "current_interpretation": current_interpretation,
+        "interpretation_status": interpretation_status,
+        "user_confirmed": user_confirmed,
+        "boundary_notice": (
+            "Continuity fields describe the current position for this session. "
+            "They are not durable facts. Write back to Memoria only when the "
+            "content is an observable fact."
+        ),
         "warnings": unique_warnings,
         "next_response_posture": next_response_posture,
     }

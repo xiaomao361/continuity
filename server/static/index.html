@@ -508,6 +508,13 @@ async function loadThreads() {
         <select id="thread-agent-filter" onchange="loadThreadsFiltered()">
           <option value="">全部 Agent</option>
         </select>
+        <select id="thread-interpretation-filter" onchange="loadThreadsFiltered()">
+          <option value="">全部解释状态</option>
+          <option value="active">有效</option>
+          <option value="needs_review">需复查</option>
+          <option value="stale">已过期</option>
+          <option value="closed">已关闭</option>
+        </select>
         <span class="spacer"></span>
         <button class="btn" onclick="loadThreads()">刷新</button>
       </div>
@@ -530,9 +537,13 @@ async function populateAgentFilter(threads) {
 async function loadThreadsFiltered() {
   const status = document.getElementById('thread-filter').value;
   const agentFilter = document.getElementById('thread-agent-filter')?.value || '';
+  const interpretationFilter = document.getElementById('thread-interpretation-filter')?.value || '';
   let data = await apiFetch(scoped('/api/threads' + (status ? '?status=' + status : '')));
   if (agentFilter) {
     data.threads = data.threads.filter(t => t.agent_id === agentFilter);
+  }
+  if (interpretationFilter) {
+    data.threads = data.threads.filter(t => (t.interpretation_status || 'active') === interpretationFilter);
   }
   document.getElementById('thread-list').innerHTML = renderThreadList(data.threads);
 }
@@ -549,6 +560,8 @@ function renderThreadList(threads) {
         <span class="meta-chip" style="color:${agentColor(t.agent_id||'default')};border-color:${agentColor(t.agent_id||'default')};font-weight:600">◇ ${esc(t.agent_id || '')}</span>
         ${chip('模式: ' + esc(t.mode || '一般'))}
         ${t.visibility === 'shared' ? '<span class="meta-chip" style="color:var(--orange);border-color:rgba(255,183,106,0.3)">📢 共享</span>' : ''}
+        ${chip('解释: ' + interpretationLabel(t.interpretation_status || 'active'))}
+        ${t.user_confirmed ? chip('用户确认') : ''}
         ${chip('进度: ' + esc((t.last_position || '').slice(0, 40)))}
         ${t.tags && t.tags.length ? t.tags.map(tg => chip(tg)).join('') : ''}
       </div>
@@ -579,6 +592,10 @@ async function viewThread(id) {
       <div class="detail-row"><span class="detail-label">当前进度</span><span class="detail-value">${esc(t.last_position)}</span></div>
       <div class="detail-row"><span class="detail-label">下一步</span><span class="detail-value">${esc(t.next_step)}</span></div>
       <div class="detail-row"><span class="detail-label">状态摘要</span><span class="detail-value">${esc(t.state_summary)}</span></div>
+      <div class="detail-row"><span class="detail-label">参考事实</span><span class="detail-value">${esc((t.facts_used||[]).join(', '))}</span></div>
+      <div class="detail-row"><span class="detail-label">当前解释</span><span class="detail-value">${esc(t.current_interpretation||'')}</span></div>
+      <div class="detail-row"><span class="detail-label">解释状态</span><span class="detail-value">${esc(interpretationLabel(t.interpretation_status||'active'))}</span></div>
+      <div class="detail-row"><span class="detail-label">用户确认</span><span class="detail-value">${t.user_confirmed ? '是' : '否'}</span></div>
       <div class="detail-row"><span class="detail-label">来源会话</span><span class="detail-value">${esc(t.source_session)}</span></div>
       <div class="detail-row"><span class="detail-label">备注</span><span class="detail-value">${esc(t.notes)}</span></div>
       <div style="margin-top:16px">
@@ -602,6 +619,12 @@ async function editThreadModal(id) {
     <div class="form-group"><label>当前进度</label><input id="ef-last-position" value="${esc(t.last_position||'')}"></div>
     <div class="form-group"><label>下一步</label><input id="ef-next-step" value="${esc(t.next_step||'')}"></div>
     <div class="form-group"><label>状态摘要</label><textarea id="ef-state-summary">${esc(t.state_summary||'')}</textarea></div>
+    <div class="form-group"><label>参考事实（逗号分隔）</label><input id="ef-facts-used" value="${esc((t.facts_used||[]).join(', '))}"></div>
+    <div class="form-group"><label>当前解释</label><textarea id="ef-current-interpretation">${esc(t.current_interpretation||'')}</textarea></div>
+    <div class="form-group"><label>解释状态</label><select id="ef-interpretation-status">
+      ${['active','needs_review','stale','closed'].map(s => `<option value="${s}" ${(t.interpretation_status||'active')===s?'selected':''}>${interpretationLabel(s)}</option>`).join('')}
+    </select></div>
+    <div class="form-group"><label><input type="checkbox" id="ef-user-confirmed" ${t.user_confirmed?'checked':''} style="width:auto;margin-right:8px">用户已确认当前解释</label></div>
     <div class="form-group"><label>备注</label><textarea id="ef-notes">${esc(t.notes||'')}</textarea></div>`;
   showModal('编辑对话线', body, async () => {
     await apiFetch(scoped('/api/threads/' + id), {
@@ -613,11 +636,24 @@ async function editThreadModal(id) {
         last_position: document.getElementById('ef-last-position').value,
         next_step: document.getElementById('ef-next-step').value,
         state_summary: document.getElementById('ef-state-summary').value,
+        facts_used: document.getElementById('ef-facts-used').value.split(',').map(s=>s.trim()).filter(Boolean),
+        current_interpretation: document.getElementById('ef-current-interpretation').value,
+        interpretation_status: document.getElementById('ef-interpretation-status').value,
+        user_confirmed: document.getElementById('ef-user-confirmed').checked ? 1 : 0,
         notes: document.getElementById('ef-notes').value,
       })
     });
     loadThreads();
   });
+}
+
+function interpretationLabel(status) {
+  return ({
+    active: '有效',
+    needs_review: '需复查',
+    stale: '已过期',
+    closed: '已关闭'
+  })[status] || status || '有效';
 }
 
 async function closeThread(id) {

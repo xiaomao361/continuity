@@ -38,12 +38,24 @@ shared 状态。
 
 Memoria 和 Continuity 是相对独立的系统。
 
-Memoria 负责记忆。Agent 自己决定什么时候读记忆、写记忆。
+Memoria 负责可观察事实。它保存发生过什么，不保存 Agent 对关系、信任、情绪或
+当前位置的长期解释。
 
-Continuity 负责状态续接。它保存和组装的是当前应该怎么继续，而不是长期事实库。
+Continuity 负责状态续接。它保存和组装的是当前应该怎么继续，也就是事实在当前
+时刻形成的位置，而不是长期事实库。
 
 Continuity 不依赖 Memoria 才能工作。Agent 如果需要，也可以在使用 Continuity
 Packet 前后自行调用 Memoria。
+
+核心边界：
+
+```text
+Memoria 存事实。
+Continuity 存事实在当前时刻所形成的位置。
+```
+
+Continuity 可以记录当前解释，但必须能被复查、关闭和替换。Agent 不应该把
+Continuity 的当前解释当成事实写回 Memoria。
 
 ## 数据对象
 
@@ -80,10 +92,19 @@ Session Thread 是一条可续接的对话线或工作线。
 - `last_position`
 - `next_step`
 - `state_summary`
+- `facts_used`
+- `current_interpretation`
+- `interpretation_status`
+- `user_confirmed`
 - `source_session`
 
 多条线可以同时存在。比如工程讨论、陪伴聊天、长期规划、代码调试，都可以是不同
 的 Session Thread。
+
+`facts_used` 只记录这次当前位置参考了哪些可观察事实或 Memoria 记忆 ID。
+`current_interpretation` 记录当前怎么理解这条线的位置。它是接续状态，不是长期
+事实。`interpretation_status` 用于标记解释是否仍然有效，`user_confirmed` 用于
+标记该解释是否已经被用户明确确认。
 
 `visibility` 默认为 `private`。只有标记为 `shared` 的线，才允许其他 Agent 在
 显式请求 shared 状态时看到。

@@ -44,6 +44,10 @@ class SessionThread:
     last_position: str = ""
     next_step: str = ""
     state_summary: str = ""
+    facts_used: list = field(default_factory=list)
+    current_interpretation: str = ""
+    interpretation_status: str = "active"
+    user_confirmed: bool = False
     source_session: str = ""
     tags: list = field(default_factory=list)
     notes: str = ""

@@ -82,6 +82,17 @@ Continuity 回答：
 Agent 可以自己决定什么时候取记忆、写记忆。Continuity 不应该把"记忆调用"做成
 自己的核心流程。
 
+当前 1.1 边界：
+
+```text
+Memoria 存事实。
+Continuity 存事实在当前时刻所形成的位置。
+```
+
+Thread 可以记录 `facts_used`、`current_interpretation`、
+`interpretation_status` 和 `user_confirmed`。这些字段用于说明当前为什么从这里
+接上，不是长期事实。写回 Memoria 时，只应写可观察事实。
+
 ## 存储与隔离
 
 第一版使用 SQLite（`~/.claracore/continuity/continuity.db`），支持环境变量
@@ -136,7 +147,8 @@ conda run -n zhouwei python3 skills/continuity/server/app.py --port 8001
 ```
 
 FastAPI + 中文 SPA 界面。Agent 下拉切换、per-agent 概览卡片、彩色标记、
-双重筛选、localStorage 持久化。所有操作通过 REST API，记录 audit_events。
+状态/Agent/解释状态筛选、localStorage 持久化。所有操作通过 REST API，记录
+audit_events。
 
 管理界面支持两种视图：
 

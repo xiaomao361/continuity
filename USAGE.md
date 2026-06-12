@@ -41,6 +41,19 @@ Thread、Snapshot、Handoff 支持 `visibility: private|shared`。设为 `shared
 ### Continuity Packet
 `resume` 生成的短状态包，给 Agent 在 Session 开始时读。
 
+### 当前解释
+
+Continuity 1.1 把“事实”和“当前解释”分开：
+
+| 字段 | 说明 |
+|------|------|
+| `facts_used` | 当前接续参考了哪些可观察事实或 Memoria 记忆 ID |
+| `current_interpretation` | 基于这些事实，现在应该站在哪里继续 |
+| `interpretation_status` | 当前解释是否有效、需复查、已过期或已关闭 |
+| `user_confirmed` | 用户是否明确确认过这个解释 |
+
+这些字段属于当前接续状态，不是长期事实。
+
 ### Router 动作
 
 | 动作 | 说明 |
@@ -69,6 +82,9 @@ conda run -n zhouwei python3 skills/continuity/cli.py capture \
   --last-position "实现 CLI 和管理入口" \
   --next-step "跑通 smoke test" \
   --state-summary "清晰、收敛、产品设计状态" \
+  --facts-used "memoria:abc,thread:def" \
+  --current-interpretation "当前处在边界收敛阶段" \
+  --interpretation-status needs_review \
   --source-session "codex-2026-06-12"
 
 # 更新已有 Thread
@@ -86,6 +102,9 @@ conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id codex
 
 # 只看 active
 conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id codex --status active
+
+# 只看需要复查的当前解释
+conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id codex --interpretation-status needs_review
 
 # 查看某个 Agent 自己的状态
 conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id lara
@@ -227,6 +246,7 @@ conda run -n zhouwei python3 skills/continuity/server/app.py --port 8001
 - **Agent 下拉**：侧边栏下拉选择，自动加载所有已知 Agent
 - **访问控制**：含共享数据 + 查看全部 Agent 复选框
 - **Threads**：Agent 彩标 + 共享标记 + 状态/Agent 双重筛选 + 编辑/关闭/合并
+- **Threads**：支持查看和编辑参考事实、当前解释、解释状态、用户确认
 - **Snapshots**：Agent 彩标 + 共享标记 + 详情/编辑/删除
 - **Handoffs**：Agent 彩标 + 详情/删除
 - **Agent State**：查看和编辑当前 Agent 长期状态

@@ -132,11 +132,18 @@ async def list_agents():
 @app.get("/api/threads")
 async def list_threads(
     status: str = Query(default=None),
+    interpretation_status: str = Query(default=None),
     agent_id: str = Query(default=None),
     include_shared: bool = Query(default=False),
     all_agents: bool = Query(default=False),
 ):
-    return {"threads": db.list_threads(status=status or None, **_agent_scope(agent_id, include_shared, all_agents))}
+    return {
+        "threads": db.list_threads(
+            status=status or None,
+            interpretation_status=interpretation_status or None,
+            **_agent_scope(agent_id, include_shared, all_agents),
+        )
+    }
 
 
 @app.get("/api/threads/{thread_id}")
@@ -163,10 +170,16 @@ async def update_thread(
     scope = _agent_scope(agent_id, include_shared, all_agents)
     if not db.get_thread(thread_id, **scope):
         raise HTTPException(status_code=404, detail="Thread not found")
-    allowed = {"topic", "mode", "status", "last_position", "next_step", "state_summary", "notes", "visibility"}
+    allowed = {
+        "topic", "mode", "status", "last_position", "next_step", "state_summary",
+        "current_interpretation", "interpretation_status", "user_confirmed",
+        "notes", "visibility"
+    }
     updates = {k: v for k, v in body.items() if k in allowed and v is not None}
     if "tags" in body and isinstance(body["tags"], list):
         updates["tags"] = body["tags"]
+    if "facts_used" in body and isinstance(body["facts_used"], list):
+        updates["facts_used"] = body["facts_used"]
     updates["updated_by"] = "user"
     updates["last_active_at"] = now_iso()
     result = db.update_thread(thread_id, actor="user", **updates)

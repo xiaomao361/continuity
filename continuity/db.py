@@ -38,6 +38,10 @@ CREATE TABLE IF NOT EXISTS session_threads (
     last_position TEXT DEFAULT '',
     next_step TEXT DEFAULT '',
     state_summary TEXT DEFAULT '',
+    facts_used TEXT DEFAULT '[]',
+    current_interpretation TEXT DEFAULT '',
+    interpretation_status TEXT DEFAULT 'active',
+    user_confirmed INTEGER DEFAULT 0,
     source_session TEXT DEFAULT '',
     tags TEXT DEFAULT '[]',
     notes TEXT DEFAULT '',
@@ -134,6 +138,21 @@ def _migrate_schema(conn: sqlite3.Connection) -> None:
         conn.execute(
             f"UPDATE {table} SET agent_id = 'default' WHERE agent_id IS NULL OR agent_id = ''"
         )
+    _add_column_if_missing(
+        conn, "session_threads", "facts_used", "facts_used TEXT DEFAULT '[]'"
+    )
+    _add_column_if_missing(
+        conn, "session_threads", "current_interpretation",
+        "current_interpretation TEXT DEFAULT ''"
+    )
+    _add_column_if_missing(
+        conn, "session_threads", "interpretation_status",
+        "interpretation_status TEXT DEFAULT 'active'"
+    )
+    _add_column_if_missing(
+        conn, "session_threads", "user_confirmed",
+        "user_confirmed INTEGER DEFAULT 0"
+    )
 
 
 def _record_audit(conn: sqlite3.Connection, actor: str, action: str,
@@ -240,6 +259,10 @@ def create_thread(thread: SessionThread, actor: str = "agent") -> dict:
         "last_position": thread.last_position,
         "next_step": thread.next_step,
         "state_summary": thread.state_summary,
+        "facts_used": json.dumps(thread.facts_used, ensure_ascii=False),
+        "current_interpretation": thread.current_interpretation,
+        "interpretation_status": thread.interpretation_status,
+        "user_confirmed": int(thread.user_confirmed),
         "source_session": thread.source_session,
         "tags": json.dumps(thread.tags, ensure_ascii=False),
         "notes": thread.notes,
@@ -248,9 +271,11 @@ def create_thread(thread: SessionThread, actor: str = "agent") -> dict:
     conn.execute(
         """INSERT INTO session_threads
            (thread_id, version, agent_id, visibility, topic, mode, status, created_at, last_active_at,
-            last_position, next_step, state_summary, source_session, tags, notes, updated_by)
+            last_position, next_step, state_summary, facts_used, current_interpretation,
+            interpretation_status, user_confirmed, source_session, tags, notes, updated_by)
            VALUES (:thread_id, :version, :agent_id, :visibility, :topic, :mode, :status, :created_at, :last_active_at,
-            :last_position, :next_step, :state_summary, :source_session, :tags, :notes, :updated_by)""",
+            :last_position, :next_step, :state_summary, :facts_used, :current_interpretation,
+            :interpretation_status, :user_confirmed, :source_session, :tags, :notes, :updated_by)""",
         d
     )
     _record_audit(conn, actor, "create_thread", "session_thread", thread.thread_id,
@@ -259,7 +284,7 @@ def create_thread(thread: SessionThread, actor: str = "agent") -> dict:
     row = conn.execute("SELECT * FROM session_threads WHERE thread_id = ?",
                        (thread.thread_id,)).fetchone()
     conn.close()
-    return _deserialize_json_fields(_row_to_dict(row), ["tags"])
+    return _deserialize_json_fields(_row_to_dict(row), ["facts_used", "tags"])
 
 
 def update_thread(thread_id: str, actor: str = "agent", **kwargs) -> Optional[dict]:
@@ -268,8 +293,9 @@ def update_thread(thread_id: str, actor: str = "agent", **kwargs) -> Optional[di
 
     allowed = {
         "topic", "mode", "status", "last_active_at", "last_position",
-        "next_step", "state_summary", "source_session", "tags", "notes",
-        "updated_by", "agent_id", "visibility"
+        "next_step", "state_summary", "facts_used", "current_interpretation",
+        "interpretation_status", "user_confirmed", "source_session", "tags",
+        "notes", "updated_by", "agent_id", "visibility"
     }
     updates = {}
     for k, v in kwargs.items():
@@ -312,17 +338,21 @@ def get_thread(thread_id: str, agent_id: Optional[str] = None,
         ).fetchone()
     conn.close()
     result = _row_to_dict(row)
-    return _deserialize_json_fields(result, ["tags"]) if result else None
+    return _deserialize_json_fields(result, ["facts_used", "tags"]) if result else None
 
 
 def list_threads(status: Optional[str] = None, agent_id: Optional[str] = None,
-                 include_shared: bool = False, all_agents: bool = False) -> list:
+                 include_shared: bool = False, all_agents: bool = False,
+                 interpretation_status: Optional[str] = None) -> list:
     conn = _connect()
     clauses = []
     params = []
     if status:
         clauses.append("status = ?")
         params.append(status)
+    if interpretation_status:
+        clauses.append("interpretation_status = ?")
+        params.append(interpretation_status)
     if not all_agents and agent_id:
         if include_shared:
             clauses.append("(agent_id = ? OR visibility = 'shared')")
@@ -336,7 +366,7 @@ def list_threads(status: Optional[str] = None, agent_id: Optional[str] = None,
         params
     ).fetchall()
     conn.close()
-    return [_deserialize_json_fields(_row_to_dict(r), ["tags"]) for r in rows]
+    return [_deserialize_json_fields(_row_to_dict(r), ["facts_used", "tags"]) for r in rows]
 
 
 def close_thread(thread_id: str, actor: str = "agent") -> Optional[dict]:

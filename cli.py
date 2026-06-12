@@ -34,6 +34,12 @@ def _visibility(args):
     return getattr(args, "visibility", None) or "private"
 
 
+def _csv_items(value):
+    if not value:
+        return []
+    return [x.strip() for x in value.split(",") if x.strip()]
+
+
 def _add_agent_args(parser, visibility: bool = False, filters: bool = False):
     parser.add_argument("--agent-id", default=None,
                         help="Agent namespace. Required unless CONTINUITY_AGENT_ID env is set.")
@@ -75,6 +81,14 @@ def cmd_capture(args):
             updates["next_step"] = args.next_step
         if args.state_summary is not None:
             updates["state_summary"] = args.state_summary
+        if args.facts_used is not None:
+            updates["facts_used"] = _csv_items(args.facts_used)
+        if args.current_interpretation is not None:
+            updates["current_interpretation"] = args.current_interpretation
+        if args.interpretation_status is not None:
+            updates["interpretation_status"] = args.interpretation_status
+        if args.user_confirmed:
+            updates["user_confirmed"] = 1
         if args.source_session is not None:
             updates["source_session"] = args.source_session
         if args.tags:
@@ -98,6 +112,10 @@ def cmd_capture(args):
             last_position=args.last_position or "",
             next_step=args.next_step or "",
             state_summary=args.state_summary or "",
+            facts_used=_csv_items(args.facts_used),
+            current_interpretation=args.current_interpretation or "",
+            interpretation_status=args.interpretation_status or "active",
+            user_confirmed=bool(args.user_confirmed),
             tags=args.tags.split(",") if args.tags else [],
             notes=args.notes or "",
             updated_by=args.actor,
@@ -118,6 +136,7 @@ def cmd_list(args):
     """List Session Threads."""
     threads = db.list_threads(
         status=args.status or None,
+        interpretation_status=args.interpretation_status or None,
         agent_id=_scope_agent_id(args),
         include_shared=args.include_shared,
         all_agents=args.all_agents,
@@ -130,15 +149,16 @@ def cmd_list(args):
         print("No threads found.")
         return
 
-    print(f"{'ID':<24} {'Agent':<12} {'Status':<10} {'Mode':<14} {'Topic'}")
-    print("-" * 96)
+    print(f"{'ID':<24} {'Agent':<12} {'Status':<10} {'Interp':<12} {'Mode':<14} {'Topic'}")
+    print("-" * 112)
     for t in threads:
         tid = t["thread_id"][:22]
         agent = t.get("agent_id", "")[:10]
         status = t["status"]
+        interp = t.get("interpretation_status", "active")
         mode = t["mode"]
         topic = t["topic"][:40] if t["topic"] else "(no topic)"
-        print(f"{tid:<24} {agent:<12} {status:<10} {mode:<14} {topic}")
+        print(f"{tid:<24} {agent:<12} {status:<10} {interp:<12} {mode:<14} {topic}")
 
 
 def cmd_show(args):
@@ -161,6 +181,10 @@ def cmd_show(args):
             print(f"  Position:     {t['last_position']}")
             print(f"  Next Step:    {t['next_step']}")
             print(f"  State Summary:{t['state_summary']}")
+            print(f"  Facts Used:   {t.get('facts_used', [])}")
+            print(f"  Interpretation:{t.get('current_interpretation', '')}")
+            print(f"  Interpretation Status:{t.get('interpretation_status', '')}")
+            print(f"  User Confirmed:{bool(t.get('user_confirmed', False))}")
             print(f"  Source:       {t['source_session']}")
             print(f"  Tags:         {t['tags']}")
             print(f"  Notes:        {t['notes']}")
@@ -299,6 +323,14 @@ def cmd_edit(args):
             updates["next_step"] = args.next_step
         if args.state_summary is not None:
             updates["state_summary"] = args.state_summary
+        if args.facts_used is not None:
+            updates["facts_used"] = _csv_items(args.facts_used)
+        if args.current_interpretation is not None:
+            updates["current_interpretation"] = args.current_interpretation
+        if args.interpretation_status is not None:
+            updates["interpretation_status"] = args.interpretation_status
+        if args.user_confirmed:
+            updates["user_confirmed"] = 1
         if args.topic is not None:
             updates["topic"] = args.topic
         if args.mode is not None:
@@ -441,12 +473,6 @@ def cmd_snapshots(args):
         print(f"{sid:<26} {agent:<12} {name:<30} {created}")
 
 
-def _csv_items(value):
-    if not value:
-        return []
-    return [x.strip() for x in value.split(",") if x.strip()]
-
-
 def cmd_handoff(args):
     """Create a Handoff."""
     if args.thread_id:
@@ -574,6 +600,11 @@ def main():
     p_capture.add_argument("--last-position", help="Current position in the thread")
     p_capture.add_argument("--next-step", help="Next step to take")
     p_capture.add_argument("--state-summary", help="Summary of current state")
+    p_capture.add_argument("--facts-used", help="Comma-separated observed fact or memory IDs used for this position")
+    p_capture.add_argument("--current-interpretation", help="Current interpretation formed from the facts")
+    p_capture.add_argument("--interpretation-status", choices=["active", "needs_review", "stale", "closed"],
+                           help="Lifecycle state of the current interpretation")
+    p_capture.add_argument("--user-confirmed", action="store_true", help="Mark current interpretation as user confirmed")
     p_capture.add_argument("--source-session", help="Source session identifier")
     p_capture.add_argument("--tags", help="Comma-separated tags")
     p_capture.add_argument("--notes", help="Additional notes")
@@ -584,6 +615,8 @@ def main():
     p_list = sub.add_parser("list", help="List Session Threads")
     p_list.add_argument("--json", action="store_true", help="Output in JSON format")
     p_list.add_argument("--status", choices=["active", "paused", "closed"], help="Filter by status")
+    p_list.add_argument("--interpretation-status", choices=["active", "needs_review", "stale", "closed"],
+                        help="Filter by interpretation lifecycle state")
     _add_agent_args(p_list, filters=True)
 
     # show
@@ -654,6 +687,11 @@ def main():
     p_edit.add_argument("--last-position", help="New last position")
     p_edit.add_argument("--next-step", help="New next step")
     p_edit.add_argument("--state-summary", help="New state summary")
+    p_edit.add_argument("--facts-used", help="Comma-separated observed fact or memory IDs used for this position")
+    p_edit.add_argument("--current-interpretation", help="Current interpretation formed from the facts")
+    p_edit.add_argument("--interpretation-status", choices=["active", "needs_review", "stale", "closed"],
+                        help="Lifecycle state of the current interpretation")
+    p_edit.add_argument("--user-confirmed", action="store_true", help="Mark current interpretation as user confirmed")
     p_edit.add_argument("--topic", help="New topic")
     p_edit.add_argument("--mode", choices=["engineering", "companion", "planning", "review", "general"],
                         help="New mode")
