@@ -17,6 +17,10 @@ Continuity 是 ClaraCore 里的状态续接系统。它回答：
 每个 Agent 都有自己的 `agent_id`（如 `clara`、`lara`、`codex`）。默认只读自己的
 Thread/Snapshot/Handoff，互不可见。
 
+普通读写命令需要明确当前 Agent，可以传 `--agent-id`，也可以先设置
+`CONTINUITY_AGENT_ID`。只有人工总览类操作使用 `--all-agents` 时，可以不指定
+当前 Agent。
+
 三种访问层级：
 
 | 参数 | 效果 |
@@ -27,8 +31,9 @@ Thread/Snapshot/Handoff，互不可见。
 
 环境变量：`CONTINUITY_AGENT_ID=clara` 设置默认命名空间。
 
-Thread 和 Snapshot 支持 `visibility: private|shared`。将 Snapshot 设为
-`shared` 后，其他 Agent 可通过 `--include-shared` 引用（如 blend 时混合状态）。
+Thread、Snapshot、Handoff 支持 `visibility: private|shared`。设为 `shared`
+后，其他 Agent 可通过 `--include-shared` 引用。`shared` 不是默认互通，读取方
+必须显式开启。
 
 ### State Snapshot
 一次可复用的状态快照。用于未来跨话题复用某种状态（如"昨晚的亲近状态"）。
@@ -77,10 +82,10 @@ conda run -n zhouwei python3 skills/continuity/cli.py capture \
 
 ```bash
 # 列出所有 Thread
-conda run -n zhouwei python3 skills/continuity/cli.py list
+conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id codex
 
 # 只看 active
-conda run -n zhouwei python3 skills/continuity/cli.py list --status active
+conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id codex --status active
 
 # 查看某个 Agent 自己的状态
 conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id lara
@@ -92,10 +97,10 @@ conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id codex --in
 conda run -n zhouwei python3 skills/continuity/cli.py list --all-agents
 
 # JSON 格式
-conda run -n zhouwei python3 skills/continuity/cli.py list --json
+conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id codex --json
 
 # 查看详情
-conda run -n zhouwei python3 skills/continuity/cli.py show --thread-id thread_xxx
+conda run -n zhouwei python3 skills/continuity/cli.py show --agent-id codex --thread-id thread_xxx
 ```
 
 ### 保存 State Snapshot
@@ -110,14 +115,14 @@ conda run -n zhouwei python3 skills/continuity/cli.py snapshot \
   --working-posture "focused design"
 
 # 查看所有 Snapshot
-conda run -n zhouwei python3 skills/continuity/cli.py snapshots
+conda run -n zhouwei python3 skills/continuity/cli.py snapshots --agent-id codex
 ```
 
 ### 续接 Session
 
 ```bash
 # 从同一条线继续
-conda run -n zhouwei python3 skills/continuity/cli.py resume --thread-id thread_xxx
+conda run -n zhouwei python3 skills/continuity/cli.py resume --agent-id codex --thread-id thread_xxx
 
 # Blend: 话题从A线，状态从B快照
 conda run -n zhouwei python3 skills/continuity/cli.py resume \
@@ -127,7 +132,7 @@ conda run -n zhouwei python3 skills/continuity/cli.py resume \
   --action blend
 
 # 生成 JSON 给 Agent 读
-conda run -n zhouwei python3 skills/continuity/cli.py resume --thread-id thread_xxx --json
+conda run -n zhouwei python3 skills/continuity/cli.py resume --agent-id codex --thread-id thread_xxx --json
 ```
 
 ### 日常管理
@@ -135,6 +140,7 @@ conda run -n zhouwei python3 skills/continuity/cli.py resume --thread-id thread_
 ```bash
 # 创建 Handoff
 conda run -n zhouwei python3 skills/continuity/cli.py handoff \
+  --agent-id codex \
   --thread-id thread_xxx \
   --objective "交给下一个 Session 继续" \
   --completed "已完成A,已完成B" \
@@ -142,32 +148,34 @@ conda run -n zhouwei python3 skills/continuity/cli.py handoff \
   --next-step "继续处理C"
 
 # 查看所有 Handoff
-conda run -n zhouwei python3 skills/continuity/cli.py handoffs
+conda run -n zhouwei python3 skills/continuity/cli.py handoffs --agent-id codex
 
 # 编辑 Thread 摘要
 conda run -n zhouwei python3 skills/continuity/cli.py edit \
+  --agent-id codex \
   --thread-id thread_xxx \
   --last-position "新位置" \
   --next-step "新下一步"
 
 # 关闭 Thread
-conda run -n zhouwei python3 skills/continuity/cli.py close --thread-id thread_xxx
+conda run -n zhouwei python3 skills/continuity/cli.py close --agent-id codex --thread-id thread_xxx
 
 # 合并重复 Thread
 conda run -n zhouwei python3 skills/continuity/cli.py merge \
+  --agent-id codex \
   --from-thread-id thread_old \
   --into-thread-id thread_main \
   --reason "重复创建"
 
 # 删除错误的 Snapshot
-conda run -n zhouwei python3 skills/continuity/cli.py delete --snapshot-id snapshot_xxx
+conda run -n zhouwei python3 skills/continuity/cli.py delete --agent-id codex --snapshot-id snapshot_xxx
 ```
 
 ### Agent State 管理
 
 ```bash
 # 查看
-conda run -n zhouwei python3 skills/continuity/cli.py agent-state show
+conda run -n zhouwei python3 skills/continuity/cli.py agent-state show --agent-id codex
 conda run -n zhouwei python3 skills/continuity/cli.py agent-state show --agent-id lara
 
 # 更新

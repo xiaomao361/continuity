@@ -31,6 +31,9 @@ Continuity v1 是 ClaraCore 里的小型状态续接系统。
 State。需要跨 Agent 复用时，必须显式标记为 `shared`，并由读取方显式要求包含
 shared 状态。
 
+人工管理是例外：用户可以用全局视图查看全部 Agent 的状态，用于排查、改错和
+清理。全局视图不代表 Agent 之间默认共享状态，也不应该被普通 Agent 自动使用。
+
 ## 系统边界
 
 Memoria 和 Continuity 是相对独立的系统。
@@ -85,6 +88,9 @@ Session Thread 是一条可续接的对话线或工作线。
 `visibility` 默认为 `private`。只有标记为 `shared` 的线，才允许其他 Agent 在
 显式请求 shared 状态时看到。
 
+更新已有 Thread 时也必须先通过 Agent 范围校验。普通 Agent 不应该用全局视图去
+修改其他 Agent 的私有线。
+
 ### State Snapshot
 
 State Snapshot 是一次可复用的状态快照。
@@ -101,6 +107,9 @@ State Snapshot 是一次可复用的状态快照。
 State Snapshot 应该新增，不应该覆盖。因为“昨晚那个状态”和“今天这个状态”都
 可能在未来被单独选择。
 
+Snapshot 同样按 `agent_id` 隔离。跨 Agent 复用必须显式标记为 `shared`，并且由
+读取方显式请求。
+
 ### Handoff
 
 Handoff 是给未来 Session 或另一个 Agent 的接力棒。
@@ -112,6 +121,9 @@ Handoff 是给未来 Session 或另一个 Agent 的接力棒。
 - 还有什么没结束
 - 下一步最自然是什么
 - 哪些内容不要混淆或合并
+
+Handoff 也属于某个 Agent。默认只给同一个 Agent 后续 Session 使用；如果确实要
+交给另一个 Agent，才标记为 `shared`。
 
 ### Continuity Packet
 
@@ -135,6 +147,9 @@ Continuity 当前保存的状态。
 
 至少支持：
 
+- 按 Agent 查看状态
+- 查看全部 Agent 的总览
+- 显式包含 shared 状态
 - 查看所有 active / paused / closed 的 Session Thread
 - 查看 State Snapshot
 - 查看某条线的 last_position、next_step、state_summary
@@ -146,6 +161,9 @@ Continuity 当前保存的状态。
 
 人工管理入口的目的不是替代 Agent 判断，而是给用户一个校正层。Continuity 会保存
 状态，但保存出来的状态必须能被人检查和修正。
+
+全局管理视图不应该自动创建空的 Agent State。只有指定 Agent 后，才读取或更新该
+Agent 的长期状态。
 
 ## Router
 
@@ -181,6 +199,9 @@ Session 开始时，Continuity 可以做：
 - 根据用户要求选择某个 State Snapshot
 - 生成 Continuity Packet
 - 如果用户没有明确说要接哪条线，可以给出候选，而不是强行合并
+
+Session 开始必须先确定当前 Agent。候选列表默认只来自当前 Agent；如果用户明确
+要求跨 Agent 续接，才允许包含 shared 状态或进入人工全局视图。
 
 ### 对话过程中
 

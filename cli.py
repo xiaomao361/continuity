@@ -24,6 +24,12 @@ def _agent_id(args):
     return require_agent_id(getattr(args, "agent_id", None))
 
 
+def _scope_agent_id(args):
+    if getattr(args, "all_agents", False):
+        return None
+    return _agent_id(args)
+
+
 def _visibility(args):
     return getattr(args, "visibility", None) or "private"
 
@@ -52,7 +58,7 @@ def cmd_capture(args):
     """Create or update a Session Thread."""
     if args.thread_id:
         # Update existing
-        existing = db.get_thread(args.thread_id, agent_id=_agent_id(args),
+        existing = db.get_thread(args.thread_id, agent_id=_scope_agent_id(args),
                                  include_shared=args.include_shared,
                                  all_agents=args.all_agents)
         if not existing:
@@ -112,7 +118,7 @@ def cmd_list(args):
     """List Session Threads."""
     threads = db.list_threads(
         status=args.status or None,
-        agent_id=_agent_id(args),
+        agent_id=_scope_agent_id(args),
         include_shared=args.include_shared,
         all_agents=args.all_agents,
     )
@@ -138,7 +144,7 @@ def cmd_list(args):
 def cmd_show(args):
     """Show thread, snapshot, or handoff details."""
     if args.thread_id:
-        t = db.get_thread(args.thread_id, agent_id=_agent_id(args),
+        t = db.get_thread(args.thread_id, agent_id=_scope_agent_id(args),
                           include_shared=args.include_shared, all_agents=args.all_agents)
         if not t:
             print(f"Thread '{args.thread_id}' not found", file=sys.stderr)
@@ -161,7 +167,7 @@ def cmd_show(args):
             print(f"  Updated By:   {t['updated_by']}")
 
     elif args.snapshot_id:
-        s = db.get_snapshot(args.snapshot_id, agent_id=_agent_id(args),
+        s = db.get_snapshot(args.snapshot_id, agent_id=_scope_agent_id(args),
                             include_shared=args.include_shared, all_agents=args.all_agents)
         if not s:
             print(f"Snapshot '{args.snapshot_id}' not found", file=sys.stderr)
@@ -180,7 +186,7 @@ def cmd_show(args):
             print(f"  Reuse Notes:       {s['reuse_notes']}")
             print(f"  Tags:              {s['tags']}")
     elif args.handoff_id:
-        h = db.get_handoff(args.handoff_id, agent_id=_agent_id(args),
+        h = db.get_handoff(args.handoff_id, agent_id=_scope_agent_id(args),
                            include_shared=args.include_shared, all_agents=args.all_agents)
         if not h:
             print(f"Handoff '{args.handoff_id}' not found", file=sys.stderr)
@@ -205,7 +211,7 @@ def cmd_show(args):
 def cmd_snapshot(args):
     """Save a State Snapshot."""
     if args.thread_id:
-        source = db.get_thread(args.thread_id, agent_id=_agent_id(args),
+        source = db.get_thread(args.thread_id, agent_id=_scope_agent_id(args),
                                include_shared=args.include_shared,
                                all_agents=args.all_agents)
         if not source:
@@ -263,7 +269,7 @@ def cmd_resume(args):
 
 def cmd_close(args):
     """Close a Session Thread."""
-    existing = db.get_thread(args.thread_id, agent_id=_agent_id(args),
+    existing = db.get_thread(args.thread_id, agent_id=_scope_agent_id(args),
                              include_shared=args.include_shared,
                              all_agents=args.all_agents)
     if not existing:
@@ -280,7 +286,7 @@ def cmd_close(args):
 def cmd_edit(args):
     """Edit a Thread or Snapshot."""
     if args.thread_id:
-        existing = db.get_thread(args.thread_id, agent_id=_agent_id(args),
+        existing = db.get_thread(args.thread_id, agent_id=_scope_agent_id(args),
                                  include_shared=args.include_shared,
                                  all_agents=args.all_agents)
         if not existing:
@@ -309,7 +315,7 @@ def cmd_edit(args):
         target_id = args.thread_id
 
     elif args.snapshot_id:
-        existing = db.get_snapshot(args.snapshot_id, agent_id=_agent_id(args),
+        existing = db.get_snapshot(args.snapshot_id, agent_id=_scope_agent_id(args),
                                    include_shared=args.include_shared,
                                    all_agents=args.all_agents)
         if not existing:
@@ -348,10 +354,10 @@ def cmd_edit(args):
 
 def cmd_merge(args):
     """Merge one thread into another."""
-    from_thread = db.get_thread(args.from_thread_id, agent_id=_agent_id(args),
+    from_thread = db.get_thread(args.from_thread_id, agent_id=_scope_agent_id(args),
                                 include_shared=args.include_shared,
                                 all_agents=args.all_agents)
-    into_thread = db.get_thread(args.into_thread_id, agent_id=_agent_id(args),
+    into_thread = db.get_thread(args.into_thread_id, agent_id=_scope_agent_id(args),
                                 include_shared=args.include_shared,
                                 all_agents=args.all_agents)
     if not from_thread or not into_thread:
@@ -415,7 +421,7 @@ def cmd_agent_state(args):
 def cmd_snapshots(args):
     """List all Snapshots."""
     snapshots = db.list_snapshots(
-        agent_id=_agent_id(args),
+        agent_id=_scope_agent_id(args),
         include_shared=args.include_shared,
         all_agents=args.all_agents,
     )
@@ -444,7 +450,7 @@ def _csv_items(value):
 def cmd_handoff(args):
     """Create a Handoff."""
     if args.thread_id:
-        source = db.get_thread(args.thread_id, agent_id=_agent_id(args),
+        source = db.get_thread(args.thread_id, agent_id=_scope_agent_id(args),
                                include_shared=args.include_shared,
                                all_agents=args.all_agents)
         if not source:
@@ -474,7 +480,7 @@ def cmd_handoff(args):
 def cmd_handoffs(args):
     """List all Handoffs."""
     handoffs = db.list_handoffs(
-        agent_id=_agent_id(args),
+        agent_id=_scope_agent_id(args),
         include_shared=args.include_shared,
         all_agents=args.all_agents,
     )
@@ -516,7 +522,7 @@ def cmd_audit(args):
 def cmd_delete(args):
     """Delete a Snapshot or Handoff (requires explicit --snapshot-id or --handoff-id)."""
     if args.snapshot_id:
-        existing = db.get_snapshot(args.snapshot_id, agent_id=_agent_id(args),
+        existing = db.get_snapshot(args.snapshot_id, agent_id=_scope_agent_id(args),
                                    include_shared=args.include_shared,
                                    all_agents=args.all_agents)
         if not existing:
@@ -529,7 +535,7 @@ def cmd_delete(args):
             print(f"Snapshot '{args.snapshot_id}' not found", file=sys.stderr)
             sys.exit(1)
     elif args.handoff_id:
-        existing = db.get_handoff(args.handoff_id, agent_id=_agent_id(args),
+        existing = db.get_handoff(args.handoff_id, agent_id=_scope_agent_id(args),
                                   include_shared=args.include_shared,
                                   all_agents=args.all_agents)
         if not existing:

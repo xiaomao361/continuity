@@ -51,6 +51,10 @@ CONTINUITY_ROOT=/path/to/test/root
 CONTINUITY_AGENT_ID=codex
 ```
 
+普通读写必须能确定当前 Agent：要么传 `--agent-id`，要么设置
+`CONTINUITY_AGENT_ID`。人工总览命令使用 `--all-agents` 时，可以不绑定单个
+Agent。
+
 不要把运行数据写进仓库。
 
 ## 第一版范围
@@ -111,7 +115,7 @@ CREATE TABLE agent_state (
 CREATE TABLE session_threads (
     thread_id TEXT PRIMARY KEY,
     version INTEGER NOT NULL DEFAULT 1,
-    agent_id TEXT NOT NULL DEFAULT 'default',
+    agent_id TEXT NOT NULL,
     visibility TEXT NOT NULL DEFAULT 'private',
     topic TEXT NOT NULL,
     mode TEXT NOT NULL DEFAULT 'general',
@@ -298,12 +302,14 @@ Packet 不一定要长期保存。`resume` 命令可以直接输出：
 python3 skills/continuity/cli.py init
 ```
 
-创建目录、`continuity.db`、表结构和默认 `agent_state`。
+创建目录、`continuity.db` 和表结构；旧数据中缺失的 `agent_id` 迁移到
+`default`。
 
 ### 创建或更新 Thread
 
 ```bash
 python3 skills/continuity/cli.py capture \
+  --agent-id codex \
   --topic "Continuity v1 design" \
   --mode engineering \
   --last-position "正在讨论写入和更新机制" \
@@ -317,25 +323,25 @@ python3 skills/continuity/cli.py capture \
 ### 列表
 
 ```bash
-python3 skills/continuity/cli.py list
-python3 skills/continuity/cli.py list --status active
 python3 skills/continuity/cli.py list --agent-id codex
+python3 skills/continuity/cli.py list --agent-id codex --status active
 python3 skills/continuity/cli.py list --agent-id codex --include-shared
 python3 skills/continuity/cli.py list --all-agents
-python3 skills/continuity/cli.py list --json
+python3 skills/continuity/cli.py list --agent-id codex --json
 ```
 
 ### 查看
 
 ```bash
-python3 skills/continuity/cli.py show --thread-id thread_xxx
-python3 skills/continuity/cli.py show --snapshot-id snapshot_xxx
+python3 skills/continuity/cli.py show --agent-id codex --thread-id thread_xxx
+python3 skills/continuity/cli.py show --agent-id codex --snapshot-id snapshot_xxx
 ```
 
 ### 保存 Snapshot
 
 ```bash
 python3 skills/continuity/cli.py snapshot \
+  --agent-id codex \
   --thread-id thread_xxx \
   --name "warm-focused-design-state" \
   --state-summary "亲近但清晰的设计讨论状态" \
@@ -349,6 +355,7 @@ python3 skills/continuity/cli.py snapshot \
 
 ```bash
 python3 skills/continuity/cli.py resume \
+  --agent-id codex \
   --thread-id thread_xxx
 ```
 
@@ -356,6 +363,7 @@ python3 skills/continuity/cli.py resume \
 
 ```bash
 python3 skills/continuity/cli.py resume \
+  --agent-id codex \
   --topic-thread-id thread_xxx \
   --state-snapshot-id snapshot_xxx \
   --action blend
@@ -367,26 +375,28 @@ python3 skills/continuity/cli.py resume \
 
 ```bash
 python3 skills/continuity/cli.py handoff \
+  --agent-id codex \
   --thread-id thread_xxx \
   --objective "交给未来 Session 继续" \
   --completed "已完成A,已完成B" \
   --open-items "待确认C" \
   --next-step "继续处理C"
 
-python3 skills/continuity/cli.py handoffs
-python3 skills/continuity/cli.py show --handoff-id handoff_xxx
+python3 skills/continuity/cli.py handoffs --agent-id codex
+python3 skills/continuity/cli.py show --agent-id codex --handoff-id handoff_xxx
 ```
 
 ### 关闭 Thread
 
 ```bash
-python3 skills/continuity/cli.py close --thread-id thread_xxx
+python3 skills/continuity/cli.py close --agent-id codex --thread-id thread_xxx
 ```
 
 ### 编辑
 
 ```bash
 python3 skills/continuity/cli.py edit \
+  --agent-id codex \
   --thread-id thread_xxx \
   --last-position "新的当前位置" \
   --next-step "新的下一步"
@@ -398,6 +408,7 @@ python3 skills/continuity/cli.py edit \
 
 ```bash
 python3 skills/continuity/cli.py merge \
+  --agent-id codex \
   --from-thread-id thread_old \
   --into-thread-id thread_main \
   --reason "重复创建的同一条线"
@@ -415,7 +426,7 @@ python3 skills/continuity/cli.py merge \
 查看：
 
 ```bash
-python3 skills/continuity/cli.py agent-state show
+python3 skills/continuity/cli.py agent-state show --agent-id codex
 python3 skills/continuity/cli.py agent-state show --agent-id lara
 ```
 
@@ -423,6 +434,7 @@ python3 skills/continuity/cli.py agent-state show --agent-id lara
 
 ```bash
 python3 skills/continuity/cli.py agent-state update \
+  --agent-id codex \
   --communication-style "直接、清楚、少术语" \
   --note "用户明确要求汇报结果用简单直白语言"
 ```
@@ -489,8 +501,8 @@ Codex 会按下面标准验收。
 1. 初始化 Continuity
 2. 创建两个 active Thread
 3. 保存一个 Snapshot
-4. `list` 能看到两条线
-5. `resume --thread-id` 能生成 continue Packet
+4. `list --agent-id` 能看到当前 Agent 的线
+5. `resume --agent-id ... --thread-id` 能生成 continue Packet
 6. `resume --topic-thread-id ... --state-snapshot-id ... --action blend` 能生成 blend Packet
 7. `edit` 能修改 Thread 摘要
 8. `merge` 能关闭重复 Thread，并保留主 Thread
@@ -533,9 +545,9 @@ Codex 验收时会使用临时目录，类似：
 
 ```bash
 CONTINUITY_ROOT=/tmp/continuity-smoke python3 skills/continuity/cli.py init
-CONTINUITY_ROOT=/tmp/continuity-smoke python3 skills/continuity/cli.py capture --topic "A" --mode engineering --last-position "pos A" --next-step "next A" --state-summary "state A"
-CONTINUITY_ROOT=/tmp/continuity-smoke python3 skills/continuity/cli.py capture --topic "B" --mode companion --last-position "pos B" --next-step "next B" --state-summary "state B"
-CONTINUITY_ROOT=/tmp/continuity-smoke python3 skills/continuity/cli.py list --json
+CONTINUITY_ROOT=/tmp/continuity-smoke python3 skills/continuity/cli.py capture --agent-id codex --topic "A" --mode engineering --last-position "pos A" --next-step "next A" --state-summary "state A"
+CONTINUITY_ROOT=/tmp/continuity-smoke python3 skills/continuity/cli.py capture --agent-id codex --topic "B" --mode companion --last-position "pos B" --next-step "next B" --state-summary "state B"
+CONTINUITY_ROOT=/tmp/continuity-smoke python3 skills/continuity/cli.py list --agent-id codex --json
 sqlite3 /tmp/continuity-smoke/continuity.db "select count(*) from session_threads;"
 sqlite3 /tmp/continuity-smoke/continuity.db "select count(*) from audit_events;"
 ```

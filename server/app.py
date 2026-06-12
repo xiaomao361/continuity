@@ -31,6 +31,14 @@ def _agent_scope(agent_id: str = None, include_shared: bool = False,
     }
 
 
+def _require_agent_id(agent_id: str = None) -> str:
+    resolved = agent_id or get_default_agent_id()
+    if not resolved:
+        raise HTTPException(status_code=400,
+                            detail="agent_id required. Set CONTINUITY_AGENT_ID env or pass ?agent_id=xxx")
+    return resolved
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
@@ -48,7 +56,7 @@ async def dashboard(
     threads = db.list_threads(**scope)
     snapshots = db.list_snapshots(**scope)
     handoffs = db.list_handoffs(**scope)
-    agent_state = db.get_agent_state(scope["agent_id"])
+    agent_state = None if scope["all_agents"] else db.get_agent_state(scope["agent_id"])
 
     # Per-agent thread counts
     import sqlite3
@@ -306,7 +314,7 @@ async def delete_handoff(
 
 @app.get("/api/agent-state")
 async def get_agent_state(agent_id: str = Query(default=None)):
-    return db.get_agent_state(agent_id or get_default_agent_id())
+    return db.get_agent_state(_require_agent_id(agent_id))
 
 
 @app.put("/api/agent-state")
@@ -319,7 +327,7 @@ async def update_agent_state(body: dict, agent_id: str = Query(default=None)):
         updates["boundaries"] = body["boundaries"]
     if "stable_patterns" in body and isinstance(body["stable_patterns"], list):
         updates["stable_patterns"] = body["stable_patterns"]
-    return db.update_agent_state(agent_id=agent_id or get_default_agent_id(), actor="user", **updates)
+    return db.update_agent_state(agent_id=_require_agent_id(agent_id), actor="user", **updates)
 
 
 # ── Audit ──────────────────────────────────────────────────

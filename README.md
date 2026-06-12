@@ -82,14 +82,20 @@ Continuity 回答：
 Agent 可以自己决定什么时候取记忆、写记忆。Continuity 不应该把"记忆调用"做成
 自己的核心流程。
 
-## 存储
+## 存储与隔离
 
 第一版使用 SQLite（`~/.claracore/continuity/continuity.db`），支持环境变量
 `CONTINUITY_ROOT` 覆盖存储路径。
 
-当前 Agent 可以通过 `CONTINUITY_AGENT_ID` 或命令参数 `--agent-id` 指定。默认
-只读取自己的状态；需要读取显式共享状态时使用 `--include-shared`；人工管理总览
-使用 `--all-agents`。
+当前 Agent 必须通过 `CONTINUITY_AGENT_ID` 或命令参数 `--agent-id` 指定。普通
+读写默认只读取和更新自己的状态；需要读取显式共享状态时使用 `--include-shared`；
+人工管理总览使用 `--all-agents`，不需要绑定某一个 Agent。
+
+`visibility` 默认为 `private`。Thread、Snapshot、Handoff 都带有 `agent_id`，
+只有标记为 `shared` 的对象才会被其他 Agent 在显式请求共享数据时看到。
+
+旧库里如果存在没有 `agent_id` 的记录，初始化迁移时会归到 `default`，避免留下
+空 Agent 或不可见记录。
 
 SQLite 选择原因：Thread/Snapshot/Handoff 需要查询、筛选、合并、关闭和审计，
 SQL 比分散 JSON 文件更适合。
@@ -104,7 +110,7 @@ conda run -n zhouwei python3 skills/continuity/cli.py <command>
 
 | 命令 | 说明 |
 |------|------|
-| `init` | 初始化数据库和默认 Agent State |
+| `init` | 初始化数据库并迁移旧表 |
 | `capture` | 创建或更新 Session Thread |
 | `list` | 列出所有 Session Thread |
 | `show` | 查看 Thread / Snapshot / Handoff 详情 |
@@ -131,6 +137,11 @@ conda run -n zhouwei python3 skills/continuity/server/app.py --port 8001
 
 FastAPI + 中文 SPA 界面。Agent 下拉切换、per-agent 概览卡片、彩色标记、
 双重筛选、localStorage 持久化。所有操作通过 REST API，记录 audit_events。
+
+管理界面支持两种视图：
+
+- 指定 Agent：只看当前 Agent 的私有状态，可选择包含 shared 状态
+- 查看全部 Agent：用于人工总览、排查和清理，不会创建空 Agent State
 
 ## SessionStart Hook
 

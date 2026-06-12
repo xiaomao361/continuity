@@ -33,10 +33,13 @@ conda run -n zhouwei python3 skills/continuity/cli.py init
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `CONTINUITY_ROOT` | 数据库目录 | `~/.claracore/continuity/` |
-| `CONTINUITY_AGENT_ID` | Agent 命名空间 | `default` |
+| `CONTINUITY_AGENT_ID` | Agent 命名空间 | 无，普通读写必须显式指定 |
 
 每个 Agent 用不同 `CONTINUITY_AGENT_ID` 隔离数据（如 `clara`、`lara`、`codex`）。
 Agent State 按 `agent_id` 分别存储，Thread/Snapshot/Handoff 默认只读自己的数据。
+
+也可以不设置环境变量，在每条命令里传 `--agent-id codex`。人工管理总览使用
+`--all-agents`，不需要指定当前 Agent。
 
 测试时可以指向临时目录：
 
@@ -65,6 +68,15 @@ CONTINUITY_ROOT=/tmp/continuity-test CONTINUITY_AGENT_ID=test conda run -n zhouw
 ```
 
 Hook 脚本在 ClaraCore 已配置，其他 Agent 按需添加。
+
+## Web 管理界面
+
+```bash
+conda run -n zhouwei python3 skills/continuity/server/app.py --port 8001
+```
+
+打开 `http://127.0.0.1:8001`。管理界面可以切换 Agent、查看全部 Agent、包含
+shared 状态、编辑 Thread/Snapshot/Agent State，并查看审计日志。
 
 ## 卸载
 

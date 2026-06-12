@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS session_threads (
 CREATE TABLE IF NOT EXISTS state_snapshots (
     snapshot_id TEXT PRIMARY KEY,
     version INTEGER NOT NULL DEFAULT 1,
-    agent_id TEXT NOT NULL DEFAULT '',
+    agent_id TEXT NOT NULL DEFAULT 'default',
     visibility TEXT NOT NULL DEFAULT 'private',
     name TEXT NOT NULL,
     source_thread_id TEXT,
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS state_snapshots (
 CREATE TABLE IF NOT EXISTS handoffs (
     handoff_id TEXT PRIMARY KEY,
     version INTEGER NOT NULL DEFAULT 1,
-    agent_id TEXT NOT NULL DEFAULT '',
+    agent_id TEXT NOT NULL DEFAULT 'default',
     visibility TEXT NOT NULL DEFAULT 'private',
     thread_id TEXT,
     created_at TEXT NOT NULL,
@@ -126,10 +126,13 @@ def _migrate_schema(conn: sqlite3.Connection) -> None:
     """Keep old continuity.db files compatible with the current schema."""
     for table in ("session_threads", "state_snapshots", "handoffs"):
         _add_column_if_missing(
-            conn, table, "agent_id", "agent_id TEXT NOT NULL DEFAULT ''"
+            conn, table, "agent_id", "agent_id TEXT NOT NULL DEFAULT 'default'"
         )
         _add_column_if_missing(
             conn, table, "visibility", "visibility TEXT NOT NULL DEFAULT 'private'"
+        )
+        conn.execute(
+            f"UPDATE {table} SET agent_id = 'default' WHERE agent_id IS NULL OR agent_id = ''"
         )
 
 
