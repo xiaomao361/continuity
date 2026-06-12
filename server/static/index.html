@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Continuity — 状态续接管理</title>
+<style>
+:root {
+  --bg-primary: #07111f;
+  --bg-secondary: rgba(12, 22, 36, 0.88);
+  --bg-tertiary: rgba(18, 31, 49, 0.96);
+  --bg-hover: rgba(27, 44, 69, 0.88);
+  --border: rgba(113, 152, 198, 0.18);
+  --border-strong: rgba(127, 178, 238, 0.38);
+  --text-primary: #edf6ff;
+  --text-secondary: #95a8bf;
+  --text-muted: #60758e;
+  --accent: #67d4ff;
+  --accent-strong: #7ca8ff;
+  --accent-dim: rgba(77, 125, 207, 0.18);
+  --green: #5df2c0;
+  --green-dim: rgba(36, 120, 96, 0.22);
+  --orange: #ffb76a;
+  --orange-dim: rgba(126, 74, 26, 0.24);
+  --red: #ff7a90;
+  --red-dim: rgba(137, 37, 58, 0.22);
+  --purple: #8f8cff;
+  --purple-dim: rgba(86, 78, 188, 0.2);
+  --radius: 20px;
+  --radius-sm: 14px;
+  --shadow: 0 24px 80px rgba(1, 8, 18, 0.42);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: #040b14; }
+body {
+  font-family: "SF Pro Display", "Avenir Next", "PingFang SC", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(103, 212, 255, 0.16), transparent 22%),
+    radial-gradient(circle at 82% 18%, rgba(143, 140, 255, 0.16), transparent 24%),
+    linear-gradient(135deg, #030814 0%, #07111f 48%, #09192d 100%);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+.app {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 18px;
+  height: 100vh;
+  padding: 16px;
+}
+
+/* 侧边栏 */
+.sidebar {
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(10, 23, 39, 0.94), rgba(8, 18, 33, 0.84));
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
+}
+.logo { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding: 4px 8px 0; }
+.logo-icon {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, rgba(143, 140, 255, 0.95), rgba(103, 212, 255, 0.9));
+  border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: #03111f;
+  box-shadow: 0 8px 24px rgba(103, 212, 255, 0.2);
+}
+.logo h1 { font-size: 18px; font-weight: 650; letter-spacing: -0.03em; }
+.nav { display: flex; flex-direction: column; gap: 4px; }
+.nav-item {
+  padding: 10px 12px;
+  border-radius: 13px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  transition: all 0.15s;
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid transparent;
+}
+.nav-item:hover {
+  background: rgba(20, 37, 58, 0.82);
+  color: var(--text-primary);
+}
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(24, 59, 95, 0.92), rgba(25, 43, 84, 0.82));
+  color: var(--text-primary);
+  border-color: rgba(103, 212, 255, 0.2);
+}
+.nav-item .icon { opacity: 0.7; font-size: 14px; }
+.nav-meta {
+  margin-top: auto;
+  padding: 14px 8px 4px;
+  border-top: 1px solid rgba(113, 152, 198, 0.12);
+  font-size: 12px; color: var(--text-muted);
+}
+
+/* 主区域 */
+.main {
+  overflow-y: auto;
+  padding: 26px;
+  border-radius: 30px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(7, 18, 32, 0.9), rgba(7, 16, 29, 0.82));
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
+}
+.view-head { margin-bottom: 18px; }
+.view-kicker { font-size: 11px; letter-spacing: 0.16em; color: var(--accent); margin-bottom: 6px; }
+.page-title { font-size: 26px; font-weight: 680; letter-spacing: -0.04em; }
+.page-subtitle { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+
+/* 卡片 */
+.section-card {
+  background: linear-gradient(180deg, rgba(13, 24, 40, 0.9), rgba(9, 18, 31, 0.78));
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.section-heading {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 14px;
+}
+.section-heading h3 { font-size: 14px; font-weight: 600; }
+.section-heading span { font-size: 11px; color: var(--text-muted); }
+.section-heading .actions { display: flex; gap: 8px; }
+
+/* 统计 */
+.stats-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stat-card {
+  background: linear-gradient(180deg, rgba(13, 24, 39, 0.9), rgba(11, 20, 34, 0.74));
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+}
+.stat-card .label { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+.stat-card .value { font-size: 30px; font-weight: 720; letter-spacing: -0.05em; }
+
+/* 按钮 */
+.btn {
+  padding: 8px 13px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(18, 31, 49, 0.72);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+.btn:hover { border-color: var(--border-strong); background: var(--bg-hover); }
+.btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-strong)); border-color: transparent; color: #04111f; font-weight: 700; }
+.btn-primary:hover { transform: translateY(-1px); }
+.btn-danger { border-color: rgba(255, 122, 144, 0.16); color: var(--red); }
+.btn-danger:hover { background: var(--red-dim); }
+.btn-success { border-color: rgba(93, 242, 192, 0.18); color: var(--green); }
+.btn-success:hover { background: var(--green-dim); }
+.btn-sm { padding: 5px 9px; font-size: 11px; }
+
+/* 列表 */
+.table-list { display: flex; flex-direction: column; gap: 10px; }
+.table-card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(13, 24, 39, 0.84), rgba(8, 17, 29, 0.78));
+  padding: 16px 18px;
+  transition: border-color 0.15s;
+}
+.table-card:hover { border-color: var(--border-strong); }
+.table-head { display: flex; justify-content: space-between; gap: 10px; align-items: start; margin-bottom: 8px; }
+.table-title { font-size: 14px; color: var(--text-primary); line-height: 1.4; }
+.meta-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.meta-chip {
+  display: inline-flex; align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid rgba(113, 152, 198, 0.14);
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.03);
+}
+.status-chip {
+  display: inline-flex; align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.status-active { color: var(--green); background: var(--green-dim); }
+.status-paused { color: var(--orange); background: var(--orange-dim); }
+.status-closed { color: var(--text-muted); background: rgba(255,255,255,0.04); }
+.card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+/* 工具栏 */
+.toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.toolbar .spacer { flex: 1; }
+.toolbar select, .toolbar input {
+  background: rgba(6, 15, 28, 0.82);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 9px 13px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+.toolbar select:focus, .toolbar input:focus { outline: none; border-color: var(--accent); }
+
+/* 弹窗 */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(3, 8, 16, 0.78);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.hidden { display: none; }
+.modal {
+  background: linear-gradient(180deg, rgba(14, 26, 44, 0.98), rgba(9, 18, 31, 0.96));
+  border: 1px solid var(--border-strong);
+  border-radius: 24px;
+  padding: 28px;
+  width: 90vw; max-width: 580px;
+  max-height: 85vh; overflow-y: auto;
+  box-shadow: 0 30px 80px rgba(1, 6, 14, 0.6);
+}
+.modal h3 { font-size: 18px; margin-bottom: 18px; font-weight: 650; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%;
+  background: rgba(6, 15, 28, 0.82);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 11px 13px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+.form-group textarea { min-height: 80px; resize: vertical; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent); }
+.form-actions { display: flex; gap: 8px; margin-top: 18px; }
+
+/* 详情 */
+.detail-panel {
+  background: linear-gradient(180deg, rgba(13, 24, 40, 0.92), rgba(9, 17, 29, 0.82));
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  padding: 24px;
+}
+.detail-panel h3 { font-size: 16px; margin-bottom: 12px; }
+.detail-row { display: flex; gap: 4px; margin-bottom: 8px; font-size: 13px; }
+.detail-label { color: var(--text-muted); min-width: 100px; }
+.detail-value { color: var(--text-primary); }
+.audit-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+.audit-table th { text-align: left; color: var(--text-muted); font-size: 11px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.audit-table td { padding: 8px 12px; border-bottom: 1px solid rgba(113, 152, 198, 0.06); color: var(--text-secondary); }
+.audit-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+.empty-state {
+  color: var(--text-muted); text-align: center;
+  padding: 40px 16px; font-size: 13px;
+  border: 1px dashed rgba(113, 152, 198, 0.18);
+  border-radius: 18px;
+}
+.hidden { display: none; }
+
+@media (max-width: 960px) {
+  .app { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">↻</div>
+      <h1>Continuity</h1>
+    </div>
+    <div class="nav">
+      <div class="nav-item active" data-view="dashboard"><span class="icon">◉</span>概览</div>
+      <div class="nav-item" data-view="threads"><span class="icon">≡</span>对话线</div>
+      <div class="nav-item" data-view="snapshots"><span class="icon">◈</span>状态快照</div>
+      <div class="nav-item" data-view="handoffs"><span class="icon">↗</span>任务交接</div>
+      <div class="nav-item" data-view="agent-state"><span class="icon">◇</span>长期状态</div>
+      <div class="nav-item" data-view="audit"><span class="icon">☷</span>操作审计</div>
+    </div>
+    <div class="nav-meta">状态续接 v1</div>
+    <div class="section-card" style="padding:12px;margin-top:14px">
+      <div class="form-group">
+        <label>Agent</label>
+        <input id="agent-filter" value="default" onchange="saveScopeAndReload()">
+      </div>
+      <label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:8px">
+        <input type="checkbox" id="include-shared" onchange="saveScopeAndReload()"> 包含共享
+      </label>
+      <label style="display:block;font-size:12px;color:var(--text-secondary)">
+        <input type="checkbox" id="all-agents" onchange="saveScopeAndReload()"> 管理全部
+      </label>
+    </div>
+  </div>
+  <div class="main" id="main-content"></div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+const API = '';
+let currentView = 'dashboard';
+
+document.getElementById('agent-filter').value = localStorage.getItem('continuity.agent_id') || 'default';
+document.getElementById('include-shared').checked = localStorage.getItem('continuity.include_shared') === '1';
+document.getElementById('all-agents').checked = localStorage.getItem('continuity.all_agents') === '1';
+
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    showView(el.dataset.view);
+  });
+});
+
+async function apiFetch(path, options) {
+  const resp = await fetch(API + path, options);
+  let data = null;
+  try { data = await resp.json(); } catch (_) { data = null; }
+  if (!resp.ok) throw new Error((data && data.detail) || `请求失败 HTTP ${resp.status}`);
+  return data;
+}
+
+function scopeQuery() {
+  const agent = document.getElementById('agent-filter').value || 'default';
+  const params = new URLSearchParams();
+  params.set('agent_id', agent);
+  if (document.getElementById('include-shared').checked) params.set('include_shared', 'true');
+  if (document.getElementById('all-agents').checked) params.set('all_agents', 'true');
+  return params.toString();
+}
+
+function scoped(path) {
+  const sep = path.includes('?') ? '&' : '?';
+  return path + sep + scopeQuery();
+}
+
+function saveScopeAndReload() {
+  localStorage.setItem('continuity.agent_id', document.getElementById('agent-filter').value || 'default');
+  localStorage.setItem('continuity.include_shared', document.getElementById('include-shared').checked ? '1' : '0');
+  localStorage.setItem('continuity.all_agents', document.getElementById('all-agents').checked ? '1' : '0');
+  showView(currentView);
+}
+
+function showView(view) {
+  currentView = view;
+  if (view === 'dashboard') loadDashboard();
+  else if (view === 'threads') loadThreads();
+  else if (view === 'snapshots') loadSnapshots();
+  else if (view === 'handoffs') loadHandoffs();
+  else if (view === 'agent-state') loadAgentState();
+  else if (view === 'audit') loadAudit();
+}
+
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function chip(text, cls) {
+  return `<span class="meta-chip ${cls||''}">${esc(text)}</span>`;
+}
+
+function statusChip(status) {
+  const labels = { active: '进行中', paused: '已暂停', closed: '已关闭' };
+  return `<span class="status-chip status-${esc(status)}">${labels[status] || status}</span>`;
+}
+
+function showModal(title, bodyHtml, onSave) {
+  const overlay = document.getElementById('modal-overlay');
+  const content = document.getElementById('modal-content');
+  content.innerHTML = `<h3>${title}</h3>${bodyHtml}
+    <div class="form-actions">
+      <button class="btn btn-primary" id="modal-save">保存</button>
+      <button class="btn" onclick="closeModal()">取消</button>
+    </div>`;
+  overlay.classList.remove('hidden');
+  if (onSave) {
+    document.getElementById('modal-save').addEventListener('click', async () => {
+      try { await onSave(); closeModal(); } catch (e) { alert('出错：' + e.message); }
+    });
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
+
+// ═══ 概览 ════════════════════════════════════════════════
+async function loadDashboard() {
+  const d = await apiFetch(scoped('/api/dashboard'));
+  document.getElementById('main-content').innerHTML = `
+    <div class="view-head">
+      <div class="view-kicker">概览</div>
+      <div class="page-title">状态续接控制台</div>
+      <div class="page-subtitle">对话线 · 状态快照 · 任务交接 · 长期状态</div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="label">对话线</div><div class="value">${d.threads.total}</div></div>
+      <div class="stat-card"><div class="label">进行中</div><div class="value" style="color:var(--green)">${d.threads.active}</div></div>
+      <div class="stat-card"><div class="label">状态快照</div><div class="value" style="color:var(--accent)">${d.snapshots}</div></div>
+      <div class="stat-card"><div class="label">任务交接</div><div class="value" style="color:var(--purple)">${d.handoffs}</div></div>
+    </div>
+    <div class="section-card">
+      <div class="section-heading"><h3>最近对话线</h3></div>
+      ${d.recent_threads && d.recent_threads.length ? renderThreadList(d.recent_threads) : '<div class="empty-state">暂无对话线</div>'}
+    </div>
+    <div class="section-card">
+      <div class="section-heading"><h3>最近操作</h3></div>
+      ${d.recent_audit && d.recent_audit.length ? renderAuditTable(d.recent_audit) : '<div class="empty-state">暂无审计记录</div>'}
+    </div>`;
+}
+
+// ═══ 对话线 ══════════════════════════════════════════════
+async function loadThreads() {
+  const data = await apiFetch(scoped('/api/threads'));
+  document.getElementById('main-content').innerHTML = `
+    <div class="view-head">
+      <div class="view-kicker">对话线</div>
+      <div class="page-title">所有对话线</div>
+    </div>
+    <div class="section-card">
+      <div class="toolbar">
+        <select id="thread-filter" onchange="loadThreadsFiltered()">
+          <option value="">全部状态</option>
+          <option value="active">进行中</option>
+          <option value="paused">已暂停</option>
+          <option value="closed">已关闭</option>
+        </select>
+        <span class="spacer"></span>
+        <button class="btn" onclick="loadThreads()">刷新</button>
+      </div>
+      <div class="table-list" id="thread-list">${renderThreadList(data.threads)}</div>
+    </div>`;
+}
+
+async function loadThreadsFiltered() {
+  const status = document.getElementById('thread-filter').value;
+  const data = await apiFetch(scoped('/api/threads' + (status ? '?status=' + status : '')));
+  document.getElementById('thread-list').innerHTML = renderThreadList(data.threads);
+}
+
+function renderThreadList(threads) {
+  if (!threads || !threads.length) return '<div class="empty-state">暂无对话线</div>';
+  return threads.map(t => `
+    <div class="table-card">
+      <div class="table-head">
+        <div class="table-title">${esc(t.topic || '(无标题)')}</div>
+        ${statusChip(t.status)}
+      </div>
+      <div class="meta-row">
+        ${chip('模式: ' + esc(t.mode || '一般'))}
+        ${chip('Agent: ' + esc(t.agent_id || 'default'))}
+        ${chip('可见: ' + esc(t.visibility || 'private'))}
+        ${chip('进度: ' + esc((t.last_position || '').slice(0, 40)))}
+        ${t.tags && t.tags.length ? t.tags.map(tg => chip(tg)).join('') : ''}
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-sm" onclick="viewThread('${t.thread_id}')">详情</button>
+        <button class="btn btn-sm" onclick="editThreadModal('${t.thread_id}')">编辑</button>
+        ${t.status !== 'closed' ? `<button class="btn btn-sm" onclick="closeThread('${t.thread_id}')">关闭</button>` : ''}
+        <button class="btn btn-sm" onclick="mergeThreadModal('${t.thread_id}')">合并到…</button>
+      </div>
+    </div>`).join('');
+}
+
+async function viewThread(id) {
+  const t = await apiFetch(scoped('/api/threads/' + id));
+  document.getElementById('main-content').innerHTML = `
+    <div class="view-head">
+      <div class="view-kicker">对话线详情</div>
+      <div class="page-title">${esc(t.topic)}</div>
+      <div class="page-subtitle">${t.thread_id}</div>
+    </div>
+    <div class="detail-panel">
+      <div class="detail-row"><span class="detail-label">状态</span><span class="detail-value">${statusChip(t.status)}</span></div>
+      <div class="detail-row"><span class="detail-label">Agent</span><span class="detail-value">${esc(t.agent_id||'default')}</span></div>
+      <div class="detail-row"><span class="detail-label">可见性</span><span class="detail-value">${esc(t.visibility||'private')}</span></div>
+      <div class="detail-row"><span class="detail-label">模式</span><span class="detail-value">${esc(t.mode)}</span></div>
+      <div class="detail-row"><span class="detail-label">创建时间</span><span class="detail-value">${esc((t.created_at||'').slice(0,19))}</span></div>
+      <div class="detail-row"><span class="detail-label">最近活跃</span><span class="detail-value">${esc((t.last_active_at||'').slice(0,19))}</span></div>
+      <div class="detail-row"><span class="detail-label">当前进度</span><span class="detail-value">${esc(t.last_position)}</span></div>
+      <div class="detail-row"><span class="detail-label">下一步</span><span class="detail-value">${esc(t.next_step)}</span></div>
+      <div class="detail-row"><span class="detail-label">状态摘要</span><span class="detail-value">${esc(t.state_summary)}</span></div>
+      <div class="detail-row"><span class="detail-label">来源会话</span><span class="detail-value">${esc(t.source_session)}</span></div>
+      <div class="detail-row"><span class="detail-label">备注</span><span class="detail-value">${esc(t.notes)}</span></div>
+      <div style="margin-top:16px">
+        <button class="btn" onclick="loadThreads()">← 返回列表</button>
+        <button class="btn" onclick="editThreadModal('${t.thread_id}')">编辑</button>
+      </div>
+    </div>`;
+}
+
+async function editThreadModal(id) {
+  const t = await apiFetch(scoped('/api/threads/' + id));
+  const modeLabels = { engineering: '工程讨论', companion: '陪伴聊天', planning: '长期规划', review: '代码评审', general: '一般' };
+  const body = `
+    <div class="form-group"><label>主题</label><input id="ef-topic" value="${esc(t.topic||'')}"></div>
+    <div class="form-group"><label>模式</label><select id="ef-mode">
+      ${['engineering','companion','planning','review','general'].map(m => `<option value="${m}" ${t.mode===m?'selected':''}>${modeLabels[m]}</option>`).join('')}
+    </select></div>
+    <div class="form-group"><label>可见性</label><select id="ef-visibility">
+      ${['private','shared'].map(v => `<option value="${v}" ${t.visibility===v?'selected':''}>${v}</option>`).join('')}
+    </select></div>
+    <div class="form-group"><label>当前进度</label><input id="ef-last-position" value="${esc(t.last_position||'')}"></div>
+    <div class="form-group"><label>下一步</label><input id="ef-next-step" value="${esc(t.next_step||'')}"></div>
+    <div class="form-group"><label>状态摘要</label><textarea id="ef-state-summary">${esc(t.state_summary||'')}</textarea></div>
+    <div class="form-group"><label>备注</label><textarea id="ef-notes">${esc(t.notes||'')}</textarea></div>`;
+  showModal('编辑对话线', body, async () => {
+    await apiFetch(scoped('/api/threads/' + id), {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        topic: document.getElementById('ef-topic').value,
+        mode: document.getElementById('ef-mode').value,
+        visibility: document.getElementById('ef-visibility').value,
+        last_position: document.getElementById('ef-last-position').value,
+        next_step: document.getElementById('ef-next-step').value,
+        state_summary: document.getElementById('ef-state-summary').value,
+        notes: document.getElementById('ef-notes').value,
+      })
+    });
+    loadThreads();
+  });
+}
+
+async function closeThread(id) {
+  if (!confirm('确定关闭这条对话线？')) return;
+  await apiFetch(scoped('/api/threads/' + id + '/close'), {method:'POST'});
+  loadThreads();
+}
+
+async function mergeThreadModal(fromId) {
+  const threads = (await apiFetch(scoped('/api/threads'))).threads.filter(t => t.thread_id !== fromId);
+  const options = threads.map(t => `<option value="${t.thread_id}">${esc(t.topic||t.thread_id)}</option>`).join('');
+  const body = `
+    <p style="color:var(--text-secondary);margin-bottom:12px">将当前对话线合并到选中的目标对话线。合并后当前对话线将关闭。</p>
+    <div class="form-group"><label>目标对话线</label><select id="mf-into">${options}</select></div>
+    <div class="form-group"><label>合并原因</label><input id="mf-reason" placeholder="可选"></div>`;
+  showModal('合并对话线', body, async () => {
+    await apiFetch(scoped('/api/threads/merge'), {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        from_id: fromId,
+        into_id: document.getElementById('mf-into').value,
+        reason: document.getElementById('mf-reason').value,
+      })
+    });
+    loadThreads();
+  });
+}
+
+// ═══ 状态快照 ════════════════════════════════════════════
+async function loadSnapshots() {
+  const data = await apiFetch(scoped('/api/snapshots'));
+  document.getElementById('main-content').innerHTML = `
+    <div class="view-head">
+      <div class="view-kicker">状态快照</div>
+      <div class="page-title">所有状态快照</div>
+    </div>
+    <div class="section-card">
+      <div class="table-list">${renderSnapshotList(data.snapshots)}</div>
+    </div>`;
+}
+
+function renderSnapshotList(snapshots) {
+  if (!snapshots || !snapshots.length) return '<div class="empty-state">暂无状态快照</div>';
+  return snapshots.map(s => `
+    <div class="table-card">
+      <div class="table-head">
+        <div class="table-title">${esc(s.name)}</div>
+        <span style="font-size:11px;color:var(--text-muted)">${esc((s.created_at||'').slice(0,19))}</span>
+      </div>
+      <div class="meta-row">
+        ${chip('语气: ' + esc(s.tone||'-'))}
+        ${chip('Agent: ' + esc(s.agent_id || 'default'))}
+        ${chip('可见: ' + esc(s.visibility || 'private'))}
+        ${chip('姿态: ' + esc(s.working_posture||'-'))}
+        ${s.tags && s.tags.length ? s.tags.map(t => chip(t)).join('') : ''}
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-sm" onclick="viewSnapshot('${s.snapshot_id}')">详情</button>
+        <button class="btn btn-sm" onclick="editSnapshotModal('${s.snapshot_id}')">编辑</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSnapshot('${s.snapshot_id}')">删除</button>
+      </div>
+    </div>`).join('');
+}
+
+async function viewSnapshot(id) {
+  const s = await apiFetch(scoped('/api/snapshots/' + id));
+  document.getElementById('main-content').innerHTML = `
+    <div class="view-head">
+      <div class="view-kicker">快照详情</div>
+      <div class="page-title">${esc(s.name)}</div>
+    </div>
+    <div class="detail-panel">
+      <div class="detail-row"><span class="detail-label">ID</span><span class="detail-value">${s.snapshot_id}</span></div>
+      <div class="detail-row"><span class="detail-label">Agent</span><span class="detail-value">${esc(s.agent_id||'default')}</span></div>
+      <div class="detail-row"><span class="detail-label">可见性</span><span class="detail-value">${esc(s.visibility||'private')}</span></div>
+      <div class="detail-row"><span class="detail-label">来源对话线</span><span class="detail-value">${esc(s.source_thread_id||'-')}</span></div>
+      <div class="detail-row"><span class="detail-label">创建时间</span><span class="detail-value">${esc((s.created_at||'').slice(0,19))}</span></div>
+      <div class="detail-row"><span class="detail-label">状态摘要</span><span class="detail-value">${esc(s.state_summary)}</span></div>
+      <div class="detail-row"><span class="detail-label">语气</span><span class="detail-value">${esc(s.tone)}</span></div>
+      <div class="detail-row"><span class="detail-label">关系语境</span><span class="detail-value">${esc(s.relationship_context)}</span></div>
+      <div class="detail-row"><span class="detail-label">工作姿态</span><span class="detail-value">${esc(s.working_posture)}</span></div>
+      <div style="margin-top:16px">
+        <button class="btn" onclick="loadSnapshots()">← 返回</button>
+        <button class="btn btn-danger" onclick="deleteSnapshot('${s.snapshot_id}')">删除</button>
+      </div>
+    </div>`;
+}
+
+async function editSnapshotModal(id) {
+  const s = await apiFetch(scoped('/api/snapshots/' + id));
+  const body = `
+    <div class="form-group"><label>名称</label><input id="esf-name" value="${esc(s.name||'')}"></div>
+    <div class="form-group"><label>可见性</label><select id="esf-visibility">
+      ${['private','shared'].map(v => `<option value="${v}" ${s.visibility===v?'selected':''}>${v}</option>`).join('')}
+    </select></div>
+    <div class="form-group"><label>状态摘要</label><textarea id="esf-state">${esc(s.state_summary||'')}</textarea></div>
+    <div class="form-group"><label>语气</label><input id="esf-tone" value="${esc(s.tone||'')}"></div>
+    <div class="form-group"><label>工作姿态</label><input id="esf-posture" value="${esc(s.working_posture||'')}"></div>`;
+  showModal('编辑状态快照', body, async () => {
+    await apiFetch(scoped('/api/snapshots/' + id), {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name: document.getElementById('esf-name').value,
+        visibility: document.getElementById('esf-visibility').value,
+        state_summary: document.getElementById('esf-state').value,
+        tone: document.getElementById('esf-tone').value,
+        working_posture: document.getElementById('esf-posture').value,
+      })
+    });
+    loadSnapshots();
+  });
+}
+
+async function deleteSnapshot(id) {
+  if (!confirm('确定删除这个状态快照？')) return;
+  await apiFetch(scoped('/api/snapshots/' + id), {method:'DELETE'});
+  loadSnapshots();
+}
+
+// ═══ 任务交接 ═════════════════════════════════════════════
+async function loadHandoffs() {
+  const data = await apiFetch(scoped('/api/handoffs'));
+  document.getElementById('main-content').innerHTML = `
+    <div class="view-head">
+      <div class="view-kicker">任务交接</div>
+      <div class="page-title">所有任务交接</div>
+    </div>
+    <div class="section-card">
+      <div class="table-list">${renderHandoffList(data.handoffs)}</div>
+    </div>`;
+}
+
+function renderHandoffList(handoffs) {
+  if (!handoffs || !handoffs.length) return '<div class="empty-state">暂无任务交接</div>';
+  return handoffs.map(h => `
+    <div class="table-card">
+      <div class="table-head">
+        <div class="table-title">${esc(h.objective || '(无目标)')}</div>
+        <span style="font-size:11px;color:var(--text-muted)">${esc((h.created_at||'').slice(0,19))}</span>
+      </div>
+      <div class="meta-row">
+        ${h.thread_id ? chip('关联: ' + h.thread_id.slice(0,18)) : ''}
+        ${chip('Agent: ' + esc(h.agent_id || 'default'))}
+        ${chip('可见: ' + esc(h.visibility || 'private'))}
+        ${chip('下一步: ' + esc(h.next_step||'-'))}
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-sm" onclick="viewHandoff('${h.handoff_id}')">详情</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteHandoff('${h.handoff_id}')">删除</button>
+      </div>
+    </div>`).join('');
+}
+
+async function viewHandoff(id) {
+  const h = await apiFetch(scoped('/api/handoffs/' + id));
+  document.getElementById('main-content').innerHTML = `
+    <div class="view-head">
+      <div class="view-kicker">任务交接详情</div>
+      <div class="page-title">${esc(h.objective)}</div>
+    </div>
+    <div class="detail-panel">
+      <div class="detail-row"><span class="detail-label">关联对话线</span><span class="detail-value">${esc(h.thread_id||'-')}</span></div>
+      <div class="detail-row"><span class="detail-label">Agent</span><span class="detail-value">${esc(h.agent_id||'default')}</span></div>
+      <div class="detail-row"><span class="detail-label">可见性</span><span class="detail-value">${esc(h.visibility||'private')}</span></div>
+      <div class="detail-row"><span class="detail-label">创建时间</span><span class="detail-value">${esc((h.created_at||'').slice(0,19))}</span></div>
+      <div class="detail-row"><span class="detail-label">下一步</span><span class="detail-value">${esc(h.next_step)}</span></div>
+      <div class="detail-row"><span class="detail-label">已完成</span><span class="detail-value">${(h.completed||[]).join(', ') || '-'}</span></div>
+      <div class="detail-row"><span class="detail-label">待处理</span><span class="detail-value">${(h.open_items||[]).join(', ') || '-'}</span></div>
+      <div class="detail-row"><span class="detail-label">备注</span><span class="detail-value">${esc(h.notes)}</span></div>
+      <div style="margin-top:16px">
+        <button class="btn" onclick="loadHandoffs()">← 返回</button>
+        <button class="btn btn-danger" onclick="deleteHandoff('${h.handoff_id}')">删除</button>
+      </div>
+    </div>`;
+}
+
+async function deleteHandoff(id) {
+  if (!confirm('确定删除这个任务交接？')) return;
+  await apiFetch(scoped('/api/handoffs/' + id), {method:'DELETE'});
+  loadHandoffs();
+}
+
+// ═══ 长期状态 ═════════════════════════════════════════
+async function loadAgentState() {
+  const a = await apiFetch(scoped('/api/agent-state'));
+  document.getElementById('main-content').innerHTML = `
+    <div class="view-head">
+      <div class="view-kicker">长期状态</div>
+      <div class="page-title">Agent 长期状态</div>
+      <div class="page-subtitle">更新时间：${esc((a.updated_at||'').slice(0,19))}</div>
+    </div>
+    <div class="detail-panel">
+      <div class="detail-row"><span class="detail-label">交流风格</span><span class="detail-value">${esc(a.communication_style||'-')}</span></div>
+      <div class="detail-row"><span class="detail-label">关系位置</span><span class="detail-value">${esc(a.relationship_position||'-')}</span></div>
+      <div class="detail-row"><span class="detail-label">长期偏好</span><span class="detail-value">${(a.long_term_preferences||[]).join(', ') || '-'}</span></div>
+      <div class="detail-row"><span class="detail-label">边界</span><span class="detail-value">${(a.boundaries||[]).join(', ') || '-'}</span></div>
+      <div class="detail-row"><span class="detail-label">稳定模式</span><span class="detail-value">${(a.stable_patterns||[]).join(', ') || '-'}</span></div>
+      <div class="detail-row"><span class="detail-label">备注</span><span class="detail-value" style="white-space:pre-wrap">${esc(a.notes||'-')}</span></div>
+      <div style="margin-top:16px">
+        <button class="btn btn-primary" onclick="editAgentStateModal()">编辑长期状态</button>
+      </div>
+    </div>`;
+}
+
+async function editAgentStateModal() {
+  const a = await apiFetch(scoped('/api/agent-state'));
+  const body = `
+    <div class="form-group"><label>交流风格</label><input id="asf-comm" value="${esc(a.communication_style||'')}"></div>
+    <div class="form-group"><label>关系位置</label><input id="asf-rel" value="${esc(a.relationship_position||'')}"></div>
+    <div class="form-group"><label>长期偏好（逗号分隔）</label><input id="asf-prefs" value="${esc((a.long_term_preferences||[]).join(', '))}"></div>
+    <div class="form-group"><label>边界（逗号分隔）</label><input id="asf-bounds" value="${esc((a.boundaries||[]).join(', '))}"></div>
+    <div class="form-group"><label>稳定模式（逗号分隔）</label><input id="asf-patterns" value="${esc((a.stable_patterns||[]).join(', '))}"></div>
+    <div class="form-group"><label>备注</label><textarea id="asf-notes">${esc(a.notes||'')}</textarea></div>`;
+  showModal('编辑长期状态', body, async () => {
+    await apiFetch(scoped('/api/agent-state'), {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        communication_style: document.getElementById('asf-comm').value,
+        relationship_position: document.getElementById('asf-rel').value,
+        long_term_preferences: document.getElementById('asf-prefs').value.split(',').map(s=>s.trim()).filter(Boolean),
+        boundaries: document.getElementById('asf-bounds').value.split(',').map(s=>s.trim()).filter(Boolean),
+        stable_patterns: document.getElementById('asf-patterns').value.split(',').map(s=>s.trim()).filter(Boolean),
+        notes: document.getElementById('asf-notes').value,
+      })
+    });
+    loadAgentState();
+  });
+}
+
+// ═══ 操作审计 ════════════════════════════════════════════════
+async function loadAudit() {
+  const data = await apiFetch('/api/audit?limit=100');
+  document.getElementById('main-content').innerHTML = `
+    <div class="view-head">
+      <div class="view-kicker">操作审计</div>
+      <div class="page-title">操作审计日志</div>
+    </div>
+    <div class="section-card">
+      ${renderAuditTable(data.events)}
+    </div>`;
+}
+
+function renderAuditTable(events) {
+  if (!events || !events.length) return '<div class="empty-state">暂无审计记录</div>';
+  return `<table class="audit-table">
+    <thead><tr><th>时间</th><th>操作者</th><th>动作</th><th>目标</th></tr></thead>
+    <tbody>${events.map(e => `
+      <tr>
+        <td>${esc((e.time||'').slice(0,19))}</td>
+        <td>${esc(e.actor)}</td>
+        <td>${esc(e.action)}</td>
+        <td>${esc(e.target_type)}${e.target_id ? ':'+esc(e.target_id.slice(0,16)) : ''}</td>
+      </tr>`).join('')}</tbody></table>`;
+}
+
+// 启动
+loadDashboard();
+</script>
+</body>
+</html>

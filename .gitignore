@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Claude Code local settings (do not commit)
+.claude/
+
+# Continuity runtime data (generated at runtime, not in repo)
+*.db
