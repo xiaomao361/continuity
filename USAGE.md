@@ -275,6 +275,7 @@ conda run -n zhouwei python3 skills/continuity/server/app.py --port 8001
 - **访问控制**：含共享数据 + 查看全部 Agent 复选框
 - **Threads**：Agent 彩标 + 共享标记 + 状态/Agent 双重筛选 + 编辑/关闭/合并
 - **Threads**：支持查看和编辑参考事实、当前解释、解释状态、用户确认
+- **Threads**：支持查看情绪弧线（v1.2），倒序展示每条归档的时间戳和位置
 - **Snapshots**：Agent 彩标 + 共享标记 + 详情/编辑/删除
 - **Handoffs**：Agent 彩标 + 详情/删除
 - **Agent State**：查看和编辑当前 Agent 长期状态
