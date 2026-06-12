@@ -45,6 +45,18 @@ async def dashboard(
     snapshots = db.list_snapshots(**scope)
     handoffs = db.list_handoffs(**scope)
     agent_state = db.get_agent_state(scope["agent_id"])
+
+    # Per-agent thread counts
+    import sqlite3
+    from continuity.config import get_db_path
+    conn = sqlite3.connect(get_db_path())
+    conn.row_factory = sqlite3.Row
+    per_agent_rows = conn.execute(
+        "SELECT agent_id, COUNT(*) as cnt, SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) as active_cnt FROM session_threads GROUP BY agent_id"
+    ).fetchall()
+    per_agent = [{"agent_id": r["agent_id"], "total": r["cnt"], "active": r["active_cnt"]} for r in per_agent_rows]
+    conn.close()
+
     return {
         "threads": {
             "total": len(threads),
@@ -57,7 +69,50 @@ async def dashboard(
         "agent_state_updated": agent_state.get("updated_at", "") if agent_state else "",
         "recent_threads": threads[:5],
         "recent_audit": db.list_audit_events(limit=5),
+        "per_agent": per_agent,
     }
+
+
+# ── Agents ─────────────────────────────────────────────────
+
+@app.get("/api/agents")
+async def list_agents():
+    """Return all known agent IDs and their thread/snapshot/handoff counts."""
+    import sqlite3
+    from continuity.config import get_db_path
+    conn = sqlite3.connect(get_db_path())
+    conn.row_factory = sqlite3.Row
+
+    # Collect agents from threads
+    thread_agents = conn.execute(
+        "SELECT agent_id, COUNT(*) as cnt FROM session_threads GROUP BY agent_id"
+    ).fetchall()
+    snapshot_agents = conn.execute(
+        "SELECT agent_id, COUNT(*) as cnt FROM state_snapshots GROUP BY agent_id"
+    ).fetchall()
+    handoff_agents = conn.execute(
+        "SELECT agent_id, COUNT(*) as cnt FROM handoffs GROUP BY agent_id"
+    ).fetchall()
+
+    agent_map = {}
+    for row in thread_agents:
+        agent_map[row["agent_id"]] = {"threads": row["cnt"], "snapshots": 0, "handoffs": 0}
+    for row in snapshot_agents:
+        if row["agent_id"] not in agent_map:
+            agent_map[row["agent_id"]] = {"threads": 0, "snapshots": 0, "handoffs": 0}
+        agent_map[row["agent_id"]]["snapshots"] = row["cnt"]
+    for row in handoff_agents:
+        if row["agent_id"] not in agent_map:
+            agent_map[row["agent_id"]] = {"threads": 0, "snapshots": 0, "handoffs": 0}
+        agent_map[row["agent_id"]]["handoffs"] = row["cnt"]
+
+    conn.close()
+
+    agents = [
+        {"agent_id": aid, "threads": v["threads"], "snapshots": v["snapshots"], "handoffs": v["handoffs"]}
+        for aid, v in sorted(agent_map.items())
+    ]
+    return {"agents": agents, "count": len(agents)}
 
 
 # ── Threads ────────────────────────────────────────────────

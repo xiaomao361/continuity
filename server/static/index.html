@@ -292,15 +292,18 @@ body {
     <div class="nav-meta">状态续接 v1</div>
     <div class="section-card" style="padding:12px;margin-top:14px">
       <div class="form-group">
-        <label>Agent</label>
-        <input id="agent-filter" value="default" onchange="saveScopeAndReload()">
+        <label>当前 Agent</label>
+        <select id="agent-filter" onchange="saveScopeAndReload()">
+          <option value="">加载中…</option>
+        </select>
       </div>
-      <label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:8px">
-        <input type="checkbox" id="include-shared" onchange="saveScopeAndReload()"> 包含共享
+      <label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:8px">
+        <input type="checkbox" id="include-shared" onchange="saveScopeAndReload()"> 含共享数据
       </label>
-      <label style="display:block;font-size:12px;color:var(--text-secondary)">
-        <input type="checkbox" id="all-agents" onchange="saveScopeAndReload()"> 管理全部
+      <label style="display:block;font-size:11px;color:var(--text-muted)">
+        <input type="checkbox" id="all-agents" onchange="saveScopeAndReload()"> 查看全部 Agent
       </label>
+      <div id="agent-summary" style="font-size:10px;color:var(--text-muted);margin-top:8px;border-top:1px solid rgba(113,152,198,0.12);padding-top:8px"></div>
     </div>
   </div>
   <div class="main" id="main-content"></div>
@@ -313,8 +316,45 @@ body {
 <script>
 const API = '';
 let currentView = 'dashboard';
+const AGENT_COLORS = ['#67d4ff','#5df2c0','#ffb76a','#8f8cff','#ff7a90','#f0c667','#7ce3b3','#b8a0ff','#ff9e6d','#6cd9e0'];
 
-document.getElementById('agent-filter').value = localStorage.getItem('continuity.agent_id') || 'default';
+function agentColor(agentId) {
+  let hash = 0;
+  for (let i = 0; i < agentId.length; i++) { hash = ((hash << 5) - hash) + agentId.charCodeAt(i); hash |= 0; }
+  return AGENT_COLORS[Math.abs(hash) % AGENT_COLORS.length];
+}
+
+async function loadAgentDropdown() {
+  try {
+    const data = await apiFetch('/api/agents');
+    const sel = document.getElementById('agent-filter');
+    const saved = localStorage.getItem('continuity.agent_id') || 'default';
+    sel.innerHTML = '';
+    data.agents.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.agent_id;
+      opt.textContent = a.agent_id + ' (' + a.threads + '线)';
+      if (a.agent_id === saved) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    // Add "default" if not in list
+    if (!data.agents.find(a => a.agent_id === 'default')) {
+      const opt = document.createElement('option');
+      opt.value = 'default'; opt.textContent = 'default (0线)';
+      if (saved === 'default') opt.selected = true;
+      sel.appendChild(opt);
+    }
+    updateAgentSummary(data.agents);
+  } catch(e) {
+    document.getElementById('agent-filter').innerHTML = '<option value="default">default</option>';
+  }
+}
+
+function updateAgentSummary(agents) {
+  const total = agents.reduce((s,a) => s + a.threads, 0);
+  document.getElementById('agent-summary').innerHTML = agents.length + ' 个 Agent · ' + total + ' 条对话线';
+}
+
 document.getElementById('include-shared').checked = localStorage.getItem('continuity.include_shared') === '1';
 document.getElementById('all-agents').checked = localStorage.getItem('continuity.all_agents') === '1';
 
@@ -334,8 +374,12 @@ async function apiFetch(path, options) {
   return data;
 }
 
+function currentAgentId() {
+  return document.getElementById('agent-filter').value || 'default';
+}
+
 function scopeQuery() {
-  const agent = document.getElementById('agent-filter').value || 'default';
+  const agent = currentAgentId();
   const params = new URLSearchParams();
   params.set('agent_id', agent);
   if (document.getElementById('include-shared').checked) params.set('include_shared', 'true');
@@ -349,10 +393,10 @@ function scoped(path) {
 }
 
 function saveScopeAndReload() {
-  localStorage.setItem('continuity.agent_id', document.getElementById('agent-filter').value || 'default');
+  localStorage.setItem('continuity.agent_id', currentAgentId());
   localStorage.setItem('continuity.include_shared', document.getElementById('include-shared').checked ? '1' : '0');
   localStorage.setItem('continuity.all_agents', document.getElementById('all-agents').checked ? '1' : '0');
-  showView(currentView);
+  loadAgentDropdown().then(() => showView(currentView));
 }
 
 function showView(view) {
@@ -403,7 +447,7 @@ async function loadDashboard() {
     <div class="view-head">
       <div class="view-kicker">概览</div>
       <div class="page-title">状态续接控制台</div>
-      <div class="page-subtitle">对话线 · 状态快照 · 任务交接 · 长期状态</div>
+      <div class="page-subtitle">当前 Agent：<b style="color:${agentColor(currentAgentId())}">${esc(currentAgentId())}</b> · 对话线 · 状态快照 · 任务交接</div>
     </div>
     <div class="stats-row">
       <div class="stat-card"><div class="label">对话线</div><div class="value">${d.threads.total}</div></div>
@@ -411,6 +455,20 @@ async function loadDashboard() {
       <div class="stat-card"><div class="label">状态快照</div><div class="value" style="color:var(--accent)">${d.snapshots}</div></div>
       <div class="stat-card"><div class="label">任务交接</div><div class="value" style="color:var(--purple)">${d.handoffs}</div></div>
     </div>
+    ${d.per_agent && d.per_agent.length > 0 ? `
+    <div class="section-card">
+      <div class="section-heading"><h3>各 Agent 概览</h3><span>点击切换</span></div>
+      <div class="stats-row" style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr))">
+        ${d.per_agent.map(a => `
+          <div class="stat-card" style="cursor:pointer;border-left:3px solid ${agentColor(a.agent_id)}" onclick="switchAgent('${esc(a.agent_id)}')">
+            <div class="label" style="color:${agentColor(a.agent_id)};font-weight:600">◆ ${esc(a.agent_id)}</div>
+            <div class="value" style="font-size:24px">${a.total} <span style="font-size:13px;color:var(--text-secondary)">线</span></div>
+            <div style="font-size:11px;color:var(--green);margin-top:4px">${a.active} 进行中</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    ` : ''}
     <div class="section-card">
       <div class="section-heading"><h3>最近对话线</h3></div>
       ${d.recent_threads && d.recent_threads.length ? renderThreadList(d.recent_threads) : '<div class="empty-state">暂无对话线</div>'}
@@ -419,6 +477,11 @@ async function loadDashboard() {
       <div class="section-heading"><h3>最近操作</h3></div>
       ${d.recent_audit && d.recent_audit.length ? renderAuditTable(d.recent_audit) : '<div class="empty-state">暂无审计记录</div>'}
     </div>`;
+}
+
+function switchAgent(agentId) {
+  document.getElementById('agent-filter').value = agentId;
+  saveScopeAndReload();
 }
 
 // ═══ 对话线 ══════════════════════════════════════════════
@@ -437,14 +500,37 @@ async function loadThreads() {
           <option value="paused">已暂停</option>
           <option value="closed">已关闭</option>
         </select>
+        <select id="thread-agent-filter" onchange="loadThreadsFiltered()">
+          <option value="">全部 Agent</option>
+        </select>
         <span class="spacer"></span>
         <button class="btn" onclick="loadThreads()">刷新</button>
       </div>
       <div class="table-list" id="thread-list">${renderThreadList(data.threads)}</div>
     </div>`;
+  populateAgentFilter(data.threads);
+}
+
+async function populateAgentFilter(threads) {
+  const sel = document.getElementById('thread-agent-filter');
+  if (!sel) return;
+  const seen = new Set();
+  threads.forEach(t => seen.add(t.agent_id));
+  sel.innerHTML = '<option value="">全部 Agent</option>';
+  seen.forEach(id => {
+    sel.innerHTML += `<option value="${esc(id)}">${esc(id)}</option>`;
+  });
 }
 
 async function loadThreadsFiltered() {
+  const status = document.getElementById('thread-filter').value;
+  const agentFilter = document.getElementById('thread-agent-filter')?.value || '';
+  let data = await apiFetch(scoped('/api/threads' + (status ? '?status=' + status : '')));
+  if (agentFilter) {
+    data.threads = data.threads.filter(t => t.agent_id === agentFilter);
+  }
+  document.getElementById('thread-list').innerHTML = renderThreadList(data.threads);
+}
   const status = document.getElementById('thread-filter').value;
   const data = await apiFetch(scoped('/api/threads' + (status ? '?status=' + status : '')));
   document.getElementById('thread-list').innerHTML = renderThreadList(data.threads);
@@ -459,9 +545,9 @@ function renderThreadList(threads) {
         ${statusChip(t.status)}
       </div>
       <div class="meta-row">
+        <span class="meta-chip" style="color:${agentColor(t.agent_id||'default')};border-color:${agentColor(t.agent_id||'default')};font-weight:600">◇ ${esc(t.agent_id || 'default')}</span>
         ${chip('模式: ' + esc(t.mode || '一般'))}
-        ${chip('Agent: ' + esc(t.agent_id || 'default'))}
-        ${chip('可见: ' + esc(t.visibility || 'private'))}
+        ${t.visibility === 'shared' ? '<span class="meta-chip" style="color:var(--orange);border-color:rgba(255,183,106,0.3)">📢 共享</span>' : ''}
         ${chip('进度: ' + esc((t.last_position || '').slice(0, 40)))}
         ${t.tags && t.tags.length ? t.tags.map(tg => chip(tg)).join('') : ''}
       </div>
@@ -581,9 +667,9 @@ function renderSnapshotList(snapshots) {
         <span style="font-size:11px;color:var(--text-muted)">${esc((s.created_at||'').slice(0,19))}</span>
       </div>
       <div class="meta-row">
+        <span class="meta-chip" style="color:${agentColor(s.agent_id||'default')};border-color:${agentColor(s.agent_id||'default')};font-weight:600">◇ ${esc(s.agent_id || 'default')}</span>
         ${chip('语气: ' + esc(s.tone||'-'))}
-        ${chip('Agent: ' + esc(s.agent_id || 'default'))}
-        ${chip('可见: ' + esc(s.visibility || 'private'))}
+        ${s.visibility === 'shared' ? '<span class="meta-chip" style="color:var(--orange);border-color:rgba(255,183,106,0.3)">📢 共享</span>' : ''}
         ${chip('姿态: ' + esc(s.working_posture||'-'))}
         ${s.tags && s.tags.length ? s.tags.map(t => chip(t)).join('') : ''}
       </div>
@@ -672,9 +758,9 @@ function renderHandoffList(handoffs) {
         <span style="font-size:11px;color:var(--text-muted)">${esc((h.created_at||'').slice(0,19))}</span>
       </div>
       <div class="meta-row">
+        <span class="meta-chip" style="color:${agentColor(h.agent_id||'default')};border-color:${agentColor(h.agent_id||'default')};font-weight:600">◇ ${esc(h.agent_id || 'default')}</span>
         ${h.thread_id ? chip('关联: ' + h.thread_id.slice(0,18)) : ''}
-        ${chip('Agent: ' + esc(h.agent_id || 'default'))}
-        ${chip('可见: ' + esc(h.visibility || 'private'))}
+        ${h.visibility === 'shared' ? '<span class="meta-chip" style="color:var(--orange);border-color:rgba(255,183,106,0.3)">📢 共享</span>' : ''}
         ${chip('下一步: ' + esc(h.next_step||'-'))}
       </div>
       <div class="card-actions">
@@ -787,7 +873,10 @@ function renderAuditTable(events) {
 }
 
 // 启动
-loadDashboard();
+(async function boot() {
+  await loadAgentDropdown();
+  loadDashboard();
+})();
 </script>
 </body>
 </html>
