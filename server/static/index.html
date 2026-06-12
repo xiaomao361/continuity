@@ -355,8 +355,15 @@ function updateAgentSummary(agents) {
   document.getElementById('agent-summary').innerHTML = agents.length + ' 个 Agent · ' + total + ' 条对话线';
 }
 
-document.getElementById('include-shared').checked = localStorage.getItem('continuity.include_shared') === '1';
-document.getElementById('all-agents').checked = localStorage.getItem('continuity.all_agents') === '1';
+// Robust DOM init — prevent crash on missing elements
+(function initCheckboxes() {
+  try {
+    const sharedEl = document.getElementById('include-shared');
+    const allEl = document.getElementById('all-agents');
+    if (sharedEl) sharedEl.checked = localStorage.getItem('continuity.include_shared') === '1';
+    if (allEl) allEl.checked = localStorage.getItem('continuity.all_agents') === '1';
+  } catch(e) { console.error('Continuity init error:', e); }
+})();
 
 document.querySelectorAll('.nav-item').forEach(el => {
   el.addEventListener('click', () => {
@@ -529,10 +536,6 @@ async function loadThreadsFiltered() {
   if (agentFilter) {
     data.threads = data.threads.filter(t => t.agent_id === agentFilter);
   }
-  document.getElementById('thread-list').innerHTML = renderThreadList(data.threads);
-}
-  const status = document.getElementById('thread-filter').value;
-  const data = await apiFetch(scoped('/api/threads' + (status ? '?status=' + status : '')));
   document.getElementById('thread-list').innerHTML = renderThreadList(data.threads);
 }
 
@@ -874,7 +877,13 @@ function renderAuditTable(events) {
 
 // 启动
 (async function boot() {
-  await loadAgentDropdown();
+  try {
+    await loadAgentDropdown();
+  } catch(e) {
+    console.error('loadAgentDropdown failed:', e);
+    var sel = document.getElementById('agent-filter');
+    if (sel) sel.innerHTML = '<option value="default">default</option>';
+  }
   loadDashboard();
 })();
 </script>
