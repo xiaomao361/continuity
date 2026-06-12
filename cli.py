@@ -12,7 +12,7 @@ if SKILL_DIR not in sys.path:
     sys.path.insert(0, SKILL_DIR)
 
 from continuity import db
-from continuity.config import get_default_agent_id
+from continuity.config import get_default_agent_id, require_agent_id
 from continuity.models import (
     SessionThread, StateSnapshot, Handoff, now_iso
 )
@@ -21,7 +21,7 @@ from continuity.packet import build_packet
 
 
 def _agent_id(args):
-    return getattr(args, "agent_id", None) or get_default_agent_id()
+    return require_agent_id(getattr(args, "agent_id", None))
 
 
 def _visibility(args):
@@ -30,7 +30,7 @@ def _visibility(args):
 
 def _add_agent_args(parser, visibility: bool = False, filters: bool = False):
     parser.add_argument("--agent-id", default=None,
-                        help="Agent namespace. Defaults to CONTINUITY_AGENT_ID or 'default'.")
+                        help="Agent namespace. Required unless CONTINUITY_AGENT_ID env is set.")
     if visibility:
         parser.add_argument("--visibility", choices=["private", "shared"], default=None,
                             help="Visibility for created or edited state.")
@@ -45,7 +45,7 @@ def cmd_init(args):
     """Initialize Continuity database and directories."""
     db_path = db.init_db()
     print(f"Initialized: {db_path}")
-    print("Tables created, default agent_state inserted.")
+    print("Tables created. Use --agent-id <id> to start capturing state.")
 
 
 def cmd_capture(args):

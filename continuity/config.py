@@ -8,9 +8,20 @@ def get_continuity_root() -> str:
     return os.environ.get("CONTINUITY_ROOT", os.path.expanduser("~/.claracore/continuity"))
 
 
-def get_default_agent_id() -> str:
-    """Resolve current agent namespace from env or default."""
-    return os.environ.get("CONTINUITY_AGENT_ID", "default")
+def get_default_agent_id() -> str | None:
+    """Resolve current agent namespace from env. Returns None if not set."""
+    return os.environ.get("CONTINUITY_AGENT_ID")
+
+
+def require_agent_id(explicit: str | None = None) -> str:
+    """Resolve agent ID with explicit override. Raises if neither set."""
+    agent_id = explicit or get_default_agent_id()
+    if not agent_id:
+        raise SystemExit(
+            "Agent ID required. Set CONTINUITY_AGENT_ID env var or pass --agent-id.\n"
+            "Example:  CONTINUITY_AGENT_ID=clara  or  --agent-id clara"
+        )
+    return agent_id
 
 
 def get_db_path() -> str:

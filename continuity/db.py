@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS agent_state (
 CREATE TABLE IF NOT EXISTS session_threads (
     thread_id TEXT PRIMARY KEY,
     version INTEGER NOT NULL DEFAULT 1,
-    agent_id TEXT NOT NULL DEFAULT 'default',
+    agent_id TEXT NOT NULL,
     visibility TEXT NOT NULL DEFAULT 'private',
     topic TEXT NOT NULL,
     mode TEXT NOT NULL DEFAULT 'general',
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS session_threads (
 CREATE TABLE IF NOT EXISTS state_snapshots (
     snapshot_id TEXT PRIMARY KEY,
     version INTEGER NOT NULL DEFAULT 1,
-    agent_id TEXT NOT NULL DEFAULT 'default',
+    agent_id TEXT NOT NULL DEFAULT '',
     visibility TEXT NOT NULL DEFAULT 'private',
     name TEXT NOT NULL,
     source_thread_id TEXT,
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS state_snapshots (
 CREATE TABLE IF NOT EXISTS handoffs (
     handoff_id TEXT PRIMARY KEY,
     version INTEGER NOT NULL DEFAULT 1,
-    agent_id TEXT NOT NULL DEFAULT 'default',
+    agent_id TEXT NOT NULL DEFAULT '',
     visibility TEXT NOT NULL DEFAULT 'private',
     thread_id TEXT,
     created_at TEXT NOT NULL,
@@ -100,20 +100,11 @@ def _connect() -> sqlite3.Connection:
 
 
 def init_db() -> str:
-    """Create tables and default agent_state. Returns db path."""
+    """Create tables. Returns db path."""
     ensure_directories()
     conn = _connect()
     conn.executescript(SCHEMA)
     _migrate_schema(conn)
-    # Ensure default agent_state exists
-    existing = conn.execute("SELECT id FROM agent_state WHERE id = 'default'").fetchone()
-    if not existing:
-        conn.execute(
-            """INSERT INTO agent_state (id, version, updated_at)
-               VALUES ('default', 1, ?)""",
-            (now_iso(),)
-        )
-        _record_audit(conn, "system", "init", "agent_state", "default", {})
     conn.commit()
     db_path = get_db_path()
     conn.close()
@@ -135,7 +126,7 @@ def _migrate_schema(conn: sqlite3.Connection) -> None:
     """Keep old continuity.db files compatible with the current schema."""
     for table in ("session_threads", "state_snapshots", "handoffs"):
         _add_column_if_missing(
-            conn, table, "agent_id", "agent_id TEXT NOT NULL DEFAULT 'default'"
+            conn, table, "agent_id", "agent_id TEXT NOT NULL DEFAULT ''"
         )
         _add_column_if_missing(
             conn, table, "visibility", "visibility TEXT NOT NULL DEFAULT 'private'"
@@ -172,7 +163,7 @@ def _deserialize_json_fields(data: dict, fields: list) -> dict:
 
 # ── Agent State ──────────────────────────────────────────────
 
-def ensure_agent_state(agent_id: str = "default") -> None:
+def ensure_agent_state(agent_id: str) -> None:
     conn = _connect()
     row = conn.execute("SELECT id FROM agent_state WHERE id = ?", (agent_id,)).fetchone()
     if not row:
@@ -186,7 +177,7 @@ def ensure_agent_state(agent_id: str = "default") -> None:
     conn.close()
 
 
-def get_agent_state(agent_id: str = "default") -> dict:
+def get_agent_state(agent_id: str) -> dict:
     ensure_agent_state(agent_id)
     conn = _connect()
     row = conn.execute("SELECT * FROM agent_state WHERE id = ?", (agent_id,)).fetchone()
@@ -199,7 +190,7 @@ def get_agent_state(agent_id: str = "default") -> dict:
     return result
 
 
-def update_agent_state(agent_id: str = "default", actor: str = "user", **kwargs) -> dict:
+def update_agent_state(agent_id: str, actor: str = "user", **kwargs) -> dict:
     """Update agent_state fields. Only updates provided keys."""
     ensure_agent_state(agent_id)
     allowed = {

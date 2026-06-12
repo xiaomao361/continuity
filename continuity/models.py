@@ -34,7 +34,7 @@ class AgentState:
 class SessionThread:
     thread_id: str = field(default_factory=lambda: gen_id("thread"))
     version: int = 1
-    agent_id: str = "default"
+    agent_id: str = ""
     visibility: str = "private"
     topic: str = ""
     mode: str = "general"
@@ -54,7 +54,7 @@ class SessionThread:
 class StateSnapshot:
     snapshot_id: str = field(default_factory=lambda: gen_id("snapshot"))
     version: int = 1
-    agent_id: str = "default"
+    agent_id: str = ""
     visibility: str = "private"
     name: str = ""
     source_thread_id: Optional[str] = None
@@ -72,7 +72,7 @@ class StateSnapshot:
 class Handoff:
     handoff_id: str = field(default_factory=lambda: gen_id("handoff"))
     version: int = 1
-    agent_id: str = "default"
+    agent_id: str = ""
     visibility: str = "private"
     thread_id: Optional[str] = None
     created_at: str = field(default_factory=now_iso)

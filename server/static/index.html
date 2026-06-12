@@ -328,8 +328,13 @@ async function loadAgentDropdown() {
   try {
     const data = await apiFetch('/api/agents');
     const sel = document.getElementById('agent-filter');
-    const saved = localStorage.getItem('continuity.agent_id') || 'default';
-    sel.innerHTML = '';
+    const saved = localStorage.getItem('continuity.agent_id') || '';
+    sel.innerHTML = '<option value="">请选择 Agent</option>';
+    if (!data.agents.length) {
+      sel.innerHTML = '<option value="">无 Agent 数据</option>';
+      updateAgentSummary([]);
+      return;
+    }
     data.agents.forEach(a => {
       const opt = document.createElement('option');
       opt.value = a.agent_id;
@@ -337,16 +342,9 @@ async function loadAgentDropdown() {
       if (a.agent_id === saved) opt.selected = true;
       sel.appendChild(opt);
     });
-    // Add "default" if not in list
-    if (!data.agents.find(a => a.agent_id === 'default')) {
-      const opt = document.createElement('option');
-      opt.value = 'default'; opt.textContent = 'default (0线)';
-      if (saved === 'default') opt.selected = true;
-      sel.appendChild(opt);
-    }
     updateAgentSummary(data.agents);
   } catch(e) {
-    document.getElementById('agent-filter').innerHTML = '<option value="default">default</option>';
+    document.getElementById('agent-filter').innerHTML = '<option value="">加载失败，请刷新</option>';
   }
 }
 
@@ -382,7 +380,7 @@ async function apiFetch(path, options) {
 }
 
 function currentAgentId() {
-  return document.getElementById('agent-filter').value || 'default';
+  return document.getElementById('agent-filter').value || '';
 }
 
 function scopeQuery() {
@@ -548,7 +546,7 @@ function renderThreadList(threads) {
         ${statusChip(t.status)}
       </div>
       <div class="meta-row">
-        <span class="meta-chip" style="color:${agentColor(t.agent_id||'default')};border-color:${agentColor(t.agent_id||'default')};font-weight:600">◇ ${esc(t.agent_id || 'default')}</span>
+        <span class="meta-chip" style="color:${agentColor(t.agent_id||'default')};border-color:${agentColor(t.agent_id||'default')};font-weight:600">◇ ${esc(t.agent_id || '')}</span>
         ${chip('模式: ' + esc(t.mode || '一般'))}
         ${t.visibility === 'shared' ? '<span class="meta-chip" style="color:var(--orange);border-color:rgba(255,183,106,0.3)">📢 共享</span>' : ''}
         ${chip('进度: ' + esc((t.last_position || '').slice(0, 40)))}
@@ -670,7 +668,7 @@ function renderSnapshotList(snapshots) {
         <span style="font-size:11px;color:var(--text-muted)">${esc((s.created_at||'').slice(0,19))}</span>
       </div>
       <div class="meta-row">
-        <span class="meta-chip" style="color:${agentColor(s.agent_id||'default')};border-color:${agentColor(s.agent_id||'default')};font-weight:600">◇ ${esc(s.agent_id || 'default')}</span>
+        <span class="meta-chip" style="color:${agentColor(s.agent_id||'default')};border-color:${agentColor(s.agent_id||'default')};font-weight:600">◇ ${esc(s.agent_id || '')}</span>
         ${chip('语气: ' + esc(s.tone||'-'))}
         ${s.visibility === 'shared' ? '<span class="meta-chip" style="color:var(--orange);border-color:rgba(255,183,106,0.3)">📢 共享</span>' : ''}
         ${chip('姿态: ' + esc(s.working_posture||'-'))}
@@ -761,7 +759,7 @@ function renderHandoffList(handoffs) {
         <span style="font-size:11px;color:var(--text-muted)">${esc((h.created_at||'').slice(0,19))}</span>
       </div>
       <div class="meta-row">
-        <span class="meta-chip" style="color:${agentColor(h.agent_id||'default')};border-color:${agentColor(h.agent_id||'default')};font-weight:600">◇ ${esc(h.agent_id || 'default')}</span>
+        <span class="meta-chip" style="color:${agentColor(h.agent_id||'default')};border-color:${agentColor(h.agent_id||'default')};font-weight:600">◇ ${esc(h.agent_id || '')}</span>
         ${h.thread_id ? chip('关联: ' + h.thread_id.slice(0,18)) : ''}
         ${h.visibility === 'shared' ? '<span class="meta-chip" style="color:var(--orange);border-color:rgba(255,183,106,0.3)">📢 共享</span>' : ''}
         ${chip('下一步: ' + esc(h.next_step||'-'))}
@@ -882,7 +880,7 @@ function renderAuditTable(events) {
   } catch(e) {
     console.error('loadAgentDropdown failed:', e);
     var sel = document.getElementById('agent-filter');
-    if (sel) sel.innerHTML = '<option value="default">default</option>';
+    if (sel) sel.innerHTML = '<option value="">加载失败</option>';
   }
   loadDashboard();
 })();

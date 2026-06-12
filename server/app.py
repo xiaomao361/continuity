@@ -20,8 +20,12 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 def _agent_scope(agent_id: str = None, include_shared: bool = False,
                  all_agents: bool = False) -> dict:
+    resolved = agent_id or get_default_agent_id()
+    if not resolved and not all_agents:
+        raise HTTPException(status_code=400,
+                            detail="agent_id required. Set CONTINUITY_AGENT_ID env or pass ?agent_id=xxx")
     return {
-        "agent_id": agent_id or get_default_agent_id(),
+        "agent_id": resolved or "",
         "include_shared": include_shared,
         "all_agents": all_agents,
     }
