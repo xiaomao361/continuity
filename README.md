@@ -121,3 +121,36 @@ conda run -n zhouwei python3 skills/continuity/cli.py <command>
 | `delete` | 删除 Snapshot 或 Handoff |
 
 详细用法见 `USAGE.md`。
+
+## Web 管理界面
+
+```bash
+conda run -n zhouwei python3 skills/continuity/server/app.py --port 8001
+# 浏览器打开 http://127.0.0.1:8001
+```
+
+FastAPI + 中文 SPA 界面。Agent 下拉切换、per-agent 概览卡片、彩色标记、
+双重筛选、localStorage 持久化。所有操作通过 REST API，记录 audit_events。
+
+## SessionStart Hook
+
+在 `~/.claude/settings.json` 中配置 hook，Session 开始时自动注入当前
+Agent 的 Thread/Snapshot/Agent State：
+
+```json
+{
+  "env": { "CONTINUITY_AGENT_ID": "clara" },
+  "hooks": {
+    "SessionStart": [{
+      "hooks": [{
+        "type": "command",
+        "command": "bash /path/to/continuity-recall.sh",
+        "timeout": 10
+      }]
+    }]
+  }
+}
+```
+
+Agent 读取注入的 `<!-- CONTINUITY_RECALL -->` 数据，判断最匹配的 Thread，
+让用户选择要继续的状态。

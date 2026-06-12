@@ -12,10 +12,23 @@ Continuity 是 ClaraCore 里的状态续接系统。它回答：
 ### Session Thread
 一条可续接的对话线或工作线。多条线可以并行存在。
 
-### Agent ID
-每个 Agent 都有自己的 `agent_id`。比如 `lara`、`clara`、`gemini`、`codex`。
-默认只读取当前 Agent 自己的状态。可以用 `CONTINUITY_AGENT_ID` 或 `--agent-id`
-指定。
+### Agent 隔离
+
+每个 Agent 都有自己的 `agent_id`（如 `clara`、`lara`、`codex`）。默认只读自己的
+Thread/Snapshot/Handoff，互不可见。
+
+三种访问层级：
+
+| 参数 | 效果 |
+|------|------|
+| `--agent-id clara` | 只看 Clara 的数据 |
+| `--include-shared` | 额外包含其他 Agent 标记为 `shared` 的数据 |
+| `--all-agents` | 查看全部 Agent 的所有数据 |
+
+环境变量：`CONTINUITY_AGENT_ID=clara` 设置默认命名空间。
+
+Thread 和 Snapshot 支持 `visibility: private|shared`。将 Snapshot 设为
+`shared` 后，其他 Agent 可通过 `--include-shared` 引用（如 blend 时混合状态）。
 
 ### State Snapshot
 一次可复用的状态快照。用于未来跨话题复用某种状态（如"昨晚的亲近状态"）。
@@ -202,13 +215,15 @@ conda run -n zhouwei python3 skills/continuity/server/app.py --port 8001
 
 浏览器打开 `http://127.0.0.1:8001`，功能包括：
 
-- **概览**：Thread/Snapshot/Handoff 数量统计
-- **Threads**：查看列表、筛选状态、编辑摘要/下一步、关闭、合并
-- **Snapshots**：查看详情、编辑、删除
-- **Handoffs**：查看详情、删除
-- **Agent State**：查看和编辑长期状态
-- **Agent 过滤**：按 Agent 查看，或开启全部 Agent 管理模式
+- **概览**：各 Agent 卡片（点即切换）、当前 Agent 统计数据
+- **Agent 下拉**：侧边栏下拉选择，自动加载所有已知 Agent
+- **访问控制**：含共享数据 + 查看全部 Agent 复选框
+- **Threads**：Agent 彩标 + 共享标记 + 状态/Agent 双重筛选 + 编辑/关闭/合并
+- **Snapshots**：Agent 彩标 + 共享标记 + 详情/编辑/删除
+- **Handoffs**：Agent 彩标 + 详情/删除
+- **Agent State**：查看和编辑当前 Agent 长期状态
 - **Audit**：操作审计日志
+- 所有设置自动保存到浏览器 localStorage
 
 ## 人工管理
 
