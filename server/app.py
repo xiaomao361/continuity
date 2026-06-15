@@ -176,6 +176,7 @@ async def update_thread(
         "notes", "visibility", "emotional_arc",
         "reality_line", "entry_posture", "confirmed_ground",
         "provisional_read", "boundary_notes", "misread_risks",
+        "affective_trace",
     }
     updates = {k: v for k, v in body.items() if k in allowed and v is not None}
     if "tags" in body and isinstance(body["tags"], list):
