@@ -277,6 +277,15 @@ def cmd_show(args):
             print(f"  Provisional:  {t.get('provisional_read', '')}")
             print(f"  Boundaries:   {t.get('boundary_notes', '')}")
             print(f"  Misread Risks:{t.get('misread_risks', '')}")
+            at = t.get("affective_trace", []) or []
+            if at:
+                print(f"  Affective Trace ({len(at)} nodes):")
+                for node in at:
+                    rflag = " [REVIEW]" if node.get("needs_review") else ""
+                    print(f"    [{node.get('stability','?')}] {node.get('tone','')} "
+                          f"({node.get('valence','?')}, {node.get('intensity','?')}){rflag}")
+                    if node.get("note"):
+                        print(f"      {node['note']}")
 
     elif args.snapshot_id:
         s = db.get_snapshot(args.snapshot_id, agent_id=_scope_agent_id(args),
@@ -394,6 +403,16 @@ def cmd_resume(args):
             if sr.get("misread_risks"):
                 print(f"  Misread:    {sr['misread_risks'][:80]}")
         print(f"Boundary: {packet['boundary_notice'][:80]}...")
+        at = packet.get("affective_trace", []) or []
+        if at:
+            print(f"Affective Trace ({len(at)} nodes):")
+            for node in at[-3:]:
+                rflag = " [REVIEW]" if node.get("needs_review") else ""
+                print(f"  [{node.get('stability','?')}] {node.get('tone','')} "
+                      f"({node.get('valence','?')}, {node.get('intensity','?')}){rflag}")
+            sr = packet.get("shared_reality", {})
+            if sr.get("affective_guardrail"):
+                print(f"  ⚠ {sr['affective_guardrail'][:100]}...")
         ma = packet.get("model_adjustment")
         if ma:
             print(f"Model Adjustment ({ma['model']}):")

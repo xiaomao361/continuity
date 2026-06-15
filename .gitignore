@@ -13,4 +13,4 @@ __pycache__/
 
 # Continuity runtime data (generated at runtime, not in repo)
 *.db
-CLAUDE_NEXT_TASK.md
+CLAUDE_*TASK*.md

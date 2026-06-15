@@ -80,6 +80,7 @@ def build_packet(
 
     # v1.4 shared reality section
     shared_reality = {}
+    affective_trace = []
     if thread:
         for key in ("reality_line", "entry_posture", "confirmed_ground",
                      "provisional_read", "boundary_notes", "misread_risks"):
@@ -88,6 +89,16 @@ def build_packet(
                 shared_reality[key] = val
         if emotional_arc:
             shared_reality["emotional_arc"] = emotional_arc
+        # v1.5 affective trace
+        affective_trace = thread.get("affective_trace", []) or []
+        if affective_trace:
+            shared_reality["affective_trace"] = affective_trace
+            # Guardrail: trace records texture, not commands
+            shared_reality["affective_guardrail"] = (
+                "Affective trace records emotional texture, not emotional commands. "
+                "Do not perform a mood mechanically. Use it to understand how the "
+                "shared reality has felt, and re-enter carefully."
+            )
 
     # v1.4 model adjustment (only when --model is passed)
     model_adjustment = None
@@ -120,6 +131,7 @@ def build_packet(
         "interpretation_status": interpretation_status,
         "user_confirmed": user_confirmed,
         "emotional_arc": emotional_arc,
+        "affective_trace": affective_trace,
         "boundary_notice": (
             "Continuity describes the shared reality position for this session. "
             "It is not durable fact and not automatic consent. "
