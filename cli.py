@@ -481,6 +481,8 @@ def cmd_edit(args):
             updates["boundary_notes"] = args.boundary_notes
         if args.misread_risks is not None:
             updates["misread_risks"] = args.misread_risks
+        if args.clear_affective_trace:
+            updates["affective_trace"] = []
         if not updates:
             print("No fields to update. Specify at least one field.", file=sys.stderr)
             sys.exit(1)
@@ -935,6 +937,8 @@ def main():
     p_edit.add_argument("--provisional-read", help="New provisional read")
     p_edit.add_argument("--boundary-notes", help="New boundary notes")
     p_edit.add_argument("--misread-risks", help="New misread risks")
+    p_edit.add_argument("--clear-affective-trace", action="store_true",
+                        help="Clear all affective trace nodes")
     p_edit.add_argument("--name", help="New snapshot name")
     p_edit.add_argument("--reuse-notes", help="New reuse notes")
     p_edit.add_argument("--tone", help="New tone")
