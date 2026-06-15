@@ -1,12 +1,26 @@
-# Continuity Protocol
+# Continuity Protocol v1.4
 
 Continuity 是 ClaraCore 里的状态续接层。
 
-它不替代 Memoria，也不负责记忆回召。Memoria 偏"记住什么"，Continuity
-偏"这次应该怎么接上"。两者可以被同一个 Agent 一起使用，但系统职责应当相互独立。
+```
+Memory 解决"知道什么"。
+Continuity 解决"我们还在同一个现实里吗"。
+```
 
-Continuity 的核心目标是：在长对话、多 Session、上下文重建、Agent 切换时，让
-Agent 能继续站在合适的位置，而不是只知道过去发生过什么。
+Memoria 负责事实记忆。Continuity 负责让 Agent 知道：断开之后重新进入时，我们
+是否还在同一个共同现实里，应该以什么姿态重新进入。
+
+## 核心概念
+
+**共同现实 (Shared Reality)**：Agent 与用户之间那条"共同存在的线"。不是事实摘要，
+不是许可系统，不是自动亲密关系恢复。它保存的是：
+
+- 这条线是怎样走到这里的
+- 哪些东西被共同确认过
+- 哪些只是当时的临时表达
+- 断开时双方在什么位置
+- 下次该以什么姿态进入
+- 哪些误读或越界必须避免
 
 ## 定位
 

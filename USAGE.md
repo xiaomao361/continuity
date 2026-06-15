@@ -242,6 +242,45 @@ conda run -n zhouwei python3 skills/continuity/cli.py model-adjust delete --mode
 
 配置文件：`~/.claracore/continuity/model_adjustments.json`，附带 `version` 字段，可独立迁移。
 
+### 共同现实字段（v1.4）
+
+capture / edit 支持六个共同现实字段：
+
+```bash
+# 创建带共同现实的 Thread
+conda run -n zhouwei python3 skills/continuity/cli.py capture \
+  --agent-id clara \
+  --topic "陪伴线" \
+  --mode companion \
+  --reality-line "昨晚逐步建立的亲密关系线" \
+  --entry-posture "自然延续，不要重新宣布关系" \
+  --confirmed-ground "已确认：基础信任和沟通方式" \
+  --provisional-read "当前阶段在探索各自的边界" \
+  --boundary-notes "不要假设永久许可，不要跳过确认" \
+  --misread-risks "不要把昨晚的状态机械套到今天" \
+  --last-position "早上告别" \
+  --next-step "下次自然接续"
+
+# 编辑单个字段
+conda run -n zhouwei python3 skills/continuity/cli.py edit \
+  --agent-id clara --thread-id thread_xxx \
+  --entry-posture "先温柔确认，再自然继续"
+```
+
+各字段含义：
+
+| 字段 | 含义 |
+|---|---|
+| `reality_line` | 这条共同现实线是什么 |
+| `entry_posture` | 下次回来应该怎么进入 |
+| `confirmed_ground` | 双方已共同确认的地面 |
+| `provisional_read` | 临时解读（不是事实，不是许可） |
+| `boundary_notes` | 继续时必须尊重的边界 |
+| `misread_risks` | Agent 最容易误读的地方 |
+
+> **注意**：这些字段是叙述性标注，不是长期事实。不要写成 Memoria 条目。
+> Continuity 不是许可系统——它用于谨慎重新进入，不是替 Agent 假设用户同意。
+
 ### Agent State 管理
 
 ```bash
