@@ -418,7 +418,7 @@ def cmd_merge(args):
         print("Merge failed. Check both thread IDs.", file=sys.stderr)
         sys.exit(1)
     print(f"Merged '{args.from_thread_id}' → '{args.into_thread_id}'")
-    print(f"  Main thread topic: {result['topic']}")
+    print(f"  Source deleted. Main thread topic: {result['topic']}")
 
 
 def cmd_agent_state(args):

@@ -417,9 +417,9 @@ python3 skills/continuity/cli.py merge \
 合并后：
 
 - 主 Thread 保留
-- 被合并 Thread 状态改成 `closed`
-- 主 Thread 增加一条 tags 或 notes 记录
-- `audit_events` 记录合并动作
+- 被合并 Thread 物理删除
+- 主 Thread 的 notes 追加 `[merged] Thread 'xxx' — reason` 记录
+- `audit_events` 记录合并动作（含 `action: deleted_source`）
 
 ### Agent State
 
@@ -505,7 +505,7 @@ Codex 会按下面标准验收。
 5. `resume --agent-id ... --thread-id` 能生成 continue Packet
 6. `resume --topic-thread-id ... --state-snapshot-id ... --action blend` 能生成 blend Packet
 7. `edit` 能修改 Thread 摘要
-8. `merge` 能关闭重复 Thread，并保留主 Thread
+8. `merge` 能删除重复 Thread（物理删除），并保留主 Thread
 9. `close` 能关闭 Thread
 10. `agent-state update` 能更新 Agent State
 11. `audit_events` 表能看到写入记录

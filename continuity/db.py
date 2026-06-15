@@ -423,12 +423,10 @@ def merge_threads(from_id: str, into_id: str, reason: str = "",
         "UPDATE session_threads SET notes = ?, last_active_at = ? WHERE thread_id = ?",
         (new_notes, now_iso(), into_id)
     )
-    conn.execute(
-        "UPDATE session_threads SET status = 'closed' WHERE thread_id = ?",
-        (from_id,)
-    )
+    # Merge = delete source. Only the merged-into thread survives.
+    conn.execute("DELETE FROM session_threads WHERE thread_id = ?", (from_id,))
     _record_audit(conn, actor, "merge_threads", "session_thread", into_id,
-                  {"from_id": from_id, "reason": reason})
+                  {"from_id": from_id, "reason": reason, "action": "deleted_source"})
     conn.commit()
     conn.close()
     return get_thread(into_id)

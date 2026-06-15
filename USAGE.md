@@ -207,7 +207,7 @@ conda run -n zhouwei python3 skills/continuity/cli.py edit \
 # 关闭 Thread
 conda run -n zhouwei python3 skills/continuity/cli.py close --agent-id codex --thread-id thread_xxx
 
-# 合并重复 Thread
+# 合并重复 Thread（源线程物理删除，仅保留目标线程）
 conda run -n zhouwei python3 skills/continuity/cli.py merge \
   --agent-id codex \
   --from-thread-id thread_old \
