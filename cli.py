@@ -330,6 +330,7 @@ def cmd_resume(args):
         agent_id=_agent_id(args),
         include_shared=args.include_shared,
         all_agents=args.all_agents,
+        model=getattr(args, "model", None),
     )
 
     if args.json:
@@ -363,6 +364,11 @@ def cmd_resume(args):
             if sr.get("misread_risks"):
                 print(f"  Misread:    {sr['misread_risks'][:80]}")
         print(f"Boundary: {packet['boundary_notice'][:80]}...")
+        ma = packet.get("model_adjustment")
+        if ma:
+            print(f"Model Adjustment ({ma['model']}):")
+            print(f"  Phrases:  {ma.get('forbidden_phrases', [])}")
+            print(f"  Patterns: {ma.get('forbidden_patterns', [])}")
 
 
 def cmd_close(args):
@@ -837,6 +843,7 @@ def main():
     p_resume.add_argument("--thread-id", help="Thread ID (for continue/fork/reset)")
     p_resume.add_argument("--topic-thread-id", help="Topic thread ID (for blend)")
     p_resume.add_argument("--state-snapshot-id", help="State snapshot ID (for blend)")
+    p_resume.add_argument("--model", help="Model name to include negative adjustments in packet")
     _add_agent_args(p_resume, filters=True)
 
     # close

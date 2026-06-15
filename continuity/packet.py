@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from . import db
+from . import db, model_adjustments
 from .router import route as route_action
 
 
@@ -14,6 +14,7 @@ def build_packet(
     agent_id: str = "default",
     include_shared: bool = False,
     all_agents: bool = False,
+    model: Optional[str] = None,
 ) -> dict:
     """Build a full Continuity Packet for an agent to read at session start."""
 
@@ -88,6 +89,22 @@ def build_packet(
         if emotional_arc:
             shared_reality["emotional_arc"] = emotional_arc
 
+    # v1.4 model adjustment (only when --model is passed)
+    model_adjustment = None
+    if model:
+        entry = model_adjustments.get_model(model)
+        if entry:
+            model_adjustment = {
+                "model": entry["model"],
+                "forbidden_phrases": entry.get("forbidden_phrases", []),
+                "forbidden_patterns": entry.get("forbidden_patterns", []),
+                "inject_prompt": entry.get("inject_prompt", ""),
+            }
+        else:
+            unique_warnings.append(
+                f"No model adjustments found for '{model}'. Run 'model-adjust set --model {model}' to configure."
+            )
+
     packet = {
         "version": 2,
         "agent_id": agent_id,
@@ -110,6 +127,7 @@ def build_packet(
         ),
         "warnings": unique_warnings,
         "next_response_posture": next_response_posture,
+        "model_adjustment": model_adjustment,
     }
 
     return packet
