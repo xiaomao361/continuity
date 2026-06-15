@@ -53,6 +53,13 @@ class SessionThread:
     notes: str = ""
     updated_by: str = "agent"
     emotional_arc: list = field(default_factory=list)
+    # v1.4 shared reality fields
+    reality_line: str = ""
+    entry_posture: str = ""
+    confirmed_ground: str = ""
+    provisional_read: str = ""
+    boundary_notes: str = ""
+    misread_risks: str = ""
 
 
 @dataclass

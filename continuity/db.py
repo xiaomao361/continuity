@@ -157,6 +157,31 @@ def _migrate_schema(conn: sqlite3.Connection) -> None:
         conn, "session_threads", "emotional_arc",
         "emotional_arc TEXT DEFAULT '[]'"
     )
+    # v1.4 shared reality fields
+    _add_column_if_missing(
+        conn, "session_threads", "reality_line",
+        "reality_line TEXT DEFAULT ''"
+    )
+    _add_column_if_missing(
+        conn, "session_threads", "entry_posture",
+        "entry_posture TEXT DEFAULT ''"
+    )
+    _add_column_if_missing(
+        conn, "session_threads", "confirmed_ground",
+        "confirmed_ground TEXT DEFAULT ''"
+    )
+    _add_column_if_missing(
+        conn, "session_threads", "provisional_read",
+        "provisional_read TEXT DEFAULT ''"
+    )
+    _add_column_if_missing(
+        conn, "session_threads", "boundary_notes",
+        "boundary_notes TEXT DEFAULT ''"
+    )
+    _add_column_if_missing(
+        conn, "session_threads", "misread_risks",
+        "misread_risks TEXT DEFAULT ''"
+    )
 
 
 def _record_audit(conn: sqlite3.Connection, actor: str, action: str,
@@ -272,15 +297,24 @@ def create_thread(thread: SessionThread, actor: str = "agent") -> dict:
         "notes": thread.notes,
         "updated_by": thread.updated_by,
         "emotional_arc": json.dumps(thread.emotional_arc, ensure_ascii=False),
+        # v1.4 shared reality
+        "reality_line": thread.reality_line,
+        "entry_posture": thread.entry_posture,
+        "confirmed_ground": thread.confirmed_ground,
+        "provisional_read": thread.provisional_read,
+        "boundary_notes": thread.boundary_notes,
+        "misread_risks": thread.misread_risks,
     }
     conn.execute(
         """INSERT INTO session_threads
            (thread_id, version, agent_id, visibility, topic, mode, status, created_at, last_active_at,
             last_position, next_step, state_summary, facts_used, current_interpretation,
-            interpretation_status, user_confirmed, source_session, tags, notes, updated_by, emotional_arc)
+            interpretation_status, user_confirmed, source_session, tags, notes, updated_by, emotional_arc,
+            reality_line, entry_posture, confirmed_ground, provisional_read, boundary_notes, misread_risks)
            VALUES (:thread_id, :version, :agent_id, :visibility, :topic, :mode, :status, :created_at, :last_active_at,
             :last_position, :next_step, :state_summary, :facts_used, :current_interpretation,
-            :interpretation_status, :user_confirmed, :source_session, :tags, :notes, :updated_by, :emotional_arc)""",
+            :interpretation_status, :user_confirmed, :source_session, :tags, :notes, :updated_by, :emotional_arc,
+            :reality_line, :entry_posture, :confirmed_ground, :provisional_read, :boundary_notes, :misread_risks)""",
         d
     )
     _record_audit(conn, actor, "create_thread", "session_thread", thread.thread_id,
@@ -300,7 +334,9 @@ def update_thread(thread_id: str, actor: str = "agent", **kwargs) -> Optional[di
         "topic", "mode", "status", "last_active_at", "last_position",
         "next_step", "state_summary", "facts_used", "current_interpretation",
         "interpretation_status", "user_confirmed", "source_session", "tags",
-        "notes", "updated_by", "agent_id", "visibility", "emotional_arc"
+        "notes", "updated_by", "agent_id", "visibility", "emotional_arc",
+        "reality_line", "entry_posture", "confirmed_ground",
+        "provisional_read", "boundary_notes", "misread_risks",
     }
 
     # Auto-archive old last_position into emotional_arc before overwriting

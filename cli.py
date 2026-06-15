@@ -117,6 +117,19 @@ def cmd_capture(args):
             updates["notes"] = args.notes
         if args.visibility is not None:
             updates["visibility"] = args.visibility
+        # v1.4 shared reality
+        if args.reality_line is not None:
+            updates["reality_line"] = args.reality_line
+        if args.entry_posture is not None:
+            updates["entry_posture"] = args.entry_posture
+        if args.confirmed_ground is not None:
+            updates["confirmed_ground"] = args.confirmed_ground
+        if args.provisional_read is not None:
+            updates["provisional_read"] = args.provisional_read
+        if args.boundary_notes is not None:
+            updates["boundary_notes"] = args.boundary_notes
+        if args.misread_risks is not None:
+            updates["misread_risks"] = args.misread_risks
         # Explicit emotional arc entry (manual append, not auto-archive)
         if args.emotional_arc_entry is not None:
             existing_arc = existing.get("emotional_arc", []) or []
@@ -152,6 +165,12 @@ def cmd_capture(args):
             tags=args.tags.split(",") if args.tags else [],
             notes=args.notes or "",
             updated_by=args.actor,
+            reality_line=args.reality_line or "",
+            entry_posture=args.entry_posture or "",
+            confirmed_ground=args.confirmed_ground or "",
+            provisional_read=args.provisional_read or "",
+            boundary_notes=args.boundary_notes or "",
+            misread_risks=args.misread_risks or "",
         )
         result = db.create_thread(thread, actor=args.actor)
         action = "Created"
@@ -222,6 +241,12 @@ def cmd_show(args):
             print(f"  Tags:         {t['tags']}")
             print(f"  Notes:        {t['notes']}")
             print(f"  Updated By:   {t['updated_by']}")
+            print(f"  Reality Line: {t.get('reality_line', '')}")
+            print(f"  Entry Posture:{t.get('entry_posture', '')}")
+            print(f"  Confirmed:    {t.get('confirmed_ground', '')}")
+            print(f"  Provisional:  {t.get('provisional_read', '')}")
+            print(f"  Boundaries:   {t.get('boundary_notes', '')}")
+            print(f"  Misread Risks:{t.get('misread_risks', '')}")
 
     elif args.snapshot_id:
         s = db.get_snapshot(args.snapshot_id, agent_id=_scope_agent_id(args),
@@ -372,6 +397,19 @@ def cmd_edit(args):
             updates["notes"] = args.notes
         if args.visibility is not None:
             updates["visibility"] = args.visibility
+        # v1.4 shared reality
+        if args.reality_line is not None:
+            updates["reality_line"] = args.reality_line
+        if args.entry_posture is not None:
+            updates["entry_posture"] = args.entry_posture
+        if args.confirmed_ground is not None:
+            updates["confirmed_ground"] = args.confirmed_ground
+        if args.provisional_read is not None:
+            updates["provisional_read"] = args.provisional_read
+        if args.boundary_notes is not None:
+            updates["boundary_notes"] = args.boundary_notes
+        if args.misread_risks is not None:
+            updates["misread_risks"] = args.misread_risks
         if not updates:
             print("No fields to update. Specify at least one field.", file=sys.stderr)
             sys.exit(1)
@@ -713,6 +751,12 @@ def main():
     p_capture.add_argument("--notes", help="Additional notes")
     p_capture.add_argument("--emotional-arc-entry",
                            help="Append an emotional moment to the arc (without changing last_position)")
+    p_capture.add_argument("--reality-line", help="Shared reality line description")
+    p_capture.add_argument("--entry-posture", help="How to re-enter this thread")
+    p_capture.add_argument("--confirmed-ground", help="Mutually confirmed ground")
+    p_capture.add_argument("--provisional-read", help="Provisional interpretation (not confirmed fact)")
+    p_capture.add_argument("--boundary-notes", help="Boundaries to respect when continuing")
+    p_capture.add_argument("--misread-risks", help="What the next Agent is most likely to misread")
     p_capture.add_argument("--actor", default="agent", help="Who is performing this action")
     _add_agent_args(p_capture, visibility=True, filters=True)
 
@@ -801,6 +845,12 @@ def main():
     p_edit.add_argument("--mode", choices=["engineering", "companion", "planning", "review", "general"],
                         help="New mode")
     p_edit.add_argument("--notes", help="New notes")
+    p_edit.add_argument("--reality-line", help="New reality line")
+    p_edit.add_argument("--entry-posture", help="New entry posture")
+    p_edit.add_argument("--confirmed-ground", help="New confirmed ground")
+    p_edit.add_argument("--provisional-read", help="New provisional read")
+    p_edit.add_argument("--boundary-notes", help="New boundary notes")
+    p_edit.add_argument("--misread-risks", help="New misread risks")
     p_edit.add_argument("--name", help="New snapshot name")
     p_edit.add_argument("--reuse-notes", help="New reuse notes")
     p_edit.add_argument("--tone", help="New tone")
