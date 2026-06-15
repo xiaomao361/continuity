@@ -8,7 +8,8 @@ ROOT=$(mktemp -d /tmp/continuity_smoke_XXXX)
 export CONTINUITY_ROOT="$ROOT"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CLI="$(cd "$SCRIPT_DIR/.." && pwd)/cli.py"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+CLI="$PROJECT_DIR/cli.py"
 PYTHON="conda run -n zhouwei python3"
 TMP=$(mktemp)
 PASS=0
@@ -67,9 +68,41 @@ assert '机械' in t['misread_risks'], 'misread_risks mismatch'
 print('OK')
 " 2>/dev/null && green "shared reality fields OK" || red "shared reality fields mismatch"
 
-# ── 4. update last_position → emotional_arc ──
+# ── 4. Web API edit should persist shared reality fields ──
 echo ""
-echo "--- 4. emotional_arc auto-archive ---"
+echo "--- 4. Web API edit shared reality ---"
+$PYTHON -c "
+import json
+import os
+import sys
+sys.path.insert(0, '$PROJECT_DIR')
+from fastapi.testclient import TestClient
+from server.app import app
+from continuity import db
+
+client = TestClient(app)
+resp = client.put('/api/threads/$THREAD_ID?agent_id=clara', json={
+    'reality_line': 'API更新后的共同现实线',
+    'entry_posture': 'API更新后的进入姿态',
+    'confirmed_ground': 'API确认地面',
+    'provisional_read': 'API临时解读',
+    'boundary_notes': 'API边界',
+    'misread_risks': 'API误读风险',
+})
+assert resp.status_code == 200, resp.text
+t = db.get_thread('$THREAD_ID', agent_id='clara')
+assert t['reality_line'] == 'API更新后的共同现实线', 'api reality_line not persisted'
+assert t['entry_posture'] == 'API更新后的进入姿态', 'api entry_posture not persisted'
+assert t['confirmed_ground'] == 'API确认地面', 'api confirmed_ground not persisted'
+assert t['provisional_read'] == 'API临时解读', 'api provisional_read not persisted'
+assert t['boundary_notes'] == 'API边界', 'api boundary_notes not persisted'
+assert t['misread_risks'] == 'API误读风险', 'api misread_risks not persisted'
+print('OK')
+" 2>/dev/null && green "Web API shared reality edit OK" || red "Web API shared reality edit failed"
+
+# ── 5. update last_position → emotional_arc ──
+echo ""
+echo "--- 5. emotional_arc auto-archive ---"
 $PYTHON "$CLI" capture --agent-id clara --thread-id "$THREAD_ID" \
   --last-position "second-position-v2" --actor clara >/dev/null 2>&1
 $PYTHON "$CLI" show --agent-id clara --thread-id "$THREAD_ID" --json > "$TMP" 2>/dev/null
@@ -83,9 +116,9 @@ assert arc[0]['position'] == 'first-position-v1', f'expected first-position-v1, 
 print(f'{len(arc)} entries, first={arc[0][\"position\"]}')
 " 2>/dev/null && green "emotional_arc OK" || red "emotional_arc failed"
 
-# ── 5. resume with shared_reality ──
+# ── 6. resume with shared_reality ──
 echo ""
-echo "--- 5. resume shared_reality ---"
+echo "--- 6. resume shared_reality ---"
 $PYTHON "$CLI" resume --agent-id clara --thread-id "$THREAD_ID" --json > "$TMP" 2>/dev/null
 $PYTHON -c "
 import json
@@ -99,9 +132,9 @@ assert 'confirmed_ground' in sr, 'shared_reality missing confirmed_ground'
 print('OK')
 " 2>/dev/null && green "resume shared_reality OK" || red "resume shared_reality failed"
 
-# ── 6. model-adjust set ──
+# ── 7. model-adjust set ──
 echo ""
-echo "--- 6. model-adjust ---"
+echo "--- 7. model-adjust ---"
 $PYTHON "$CLI" model-adjust set --model deepseek-v4-pro \
   --forbidden-phrases "接住了,收到了" \
   --forbidden-patterns "时间幻觉" \
@@ -117,9 +150,9 @@ assert '接住了' in m['forbidden_phrases'], 'phrases mismatch'
 print('OK')
 " 2>/dev/null && green "model-adjust set/show OK" || red "model-adjust failed"
 
-# ── 7. resume --model with model_adjustment ──
+# ── 8. resume --model with model_adjustment ──
 echo ""
-echo "--- 7. resume --model ---"
+echo "--- 8. resume --model ---"
 $PYTHON "$CLI" resume --agent-id clara --thread-id "$THREAD_ID" \
   --model deepseek-v4-pro --json > "$TMP" 2>/dev/null
 $PYTHON -c "
@@ -133,9 +166,9 @@ assert '接住了' in ma['forbidden_phrases'], 'model_adjustment phrases mismatc
 print('OK')
 " 2>/dev/null && green "resume --model OK" || red "resume --model failed"
 
-# ── 8. multi-agent isolation ──
+# ── 9. multi-agent isolation ──
 echo ""
-echo "--- 8. multi-agent isolation ---"
+echo "--- 9. multi-agent isolation ---"
 $PYTHON "$CLI" capture --agent-id lara --topic "lara-private" --mode companion \
   --last-position "lara-pos" --next-step "lara-next" --actor lara >/dev/null 2>&1
 $PYTHON "$CLI" list --agent-id clara --json > "$TMP" 2>/dev/null
@@ -146,9 +179,9 @@ LARA_COUNT=$($PYTHON -c "import json; f=open('$TMP'); print(len(json.load(f)))" 
   && green "isolation: clara=$CLARA_COUNT threads, lara=$LARA_COUNT threads" \
   || red "isolation failed: clara=$CLARA_COUNT, lara=$LARA_COUNT"
 
-# ── 9. shared visibility ──
+# ── 10. shared visibility ──
 echo ""
-echo "--- 9. shared visibility ---"
+echo "--- 10. shared visibility ---"
 $PYTHON "$CLI" capture --agent-id clara --visibility shared --topic "shared-topic" \
   --mode general --last-position "shared-pos" --next-step "shared-next" --actor clara \
   --json > "$TMP" 2>/dev/null

@@ -13,7 +13,7 @@ from continuity import db, model_adjustments
 from continuity.config import get_default_agent_id
 from continuity.models import now_iso
 
-app = FastAPI(title="Continuity", version="1.2")
+app = FastAPI(title="Continuity", version="1.4")
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -173,7 +173,9 @@ async def update_thread(
     allowed = {
         "topic", "mode", "status", "last_position", "next_step", "state_summary",
         "current_interpretation", "interpretation_status", "user_confirmed",
-        "notes", "visibility", "emotional_arc"
+        "notes", "visibility", "emotional_arc",
+        "reality_line", "entry_posture", "confirmed_ground",
+        "provisional_read", "boundary_notes", "misread_risks",
     }
     updates = {k: v for k, v in body.items() if k in allowed and v is not None}
     if "tags" in body and isinstance(body["tags"], list):
