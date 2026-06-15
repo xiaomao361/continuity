@@ -60,6 +60,8 @@ class SessionThread:
     provisional_read: str = ""
     boundary_notes: str = ""
     misread_risks: str = ""
+    # v1.5 affective trace — emotional texture, not emotional commands
+    affective_trace: list = field(default_factory=list)
 
 
 @dataclass
