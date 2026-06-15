@@ -12,6 +12,25 @@ Continuity 不是保存更多上下文，也不是把 Memory 做厚。
 目标是：AI 如何维持共同现实的连续性。Agent 与用户之间那条”共同存在的线”，如何在
 Session 死亡之后还能继续存在。
 
+## 用户口语：共同线
+
+“共同线”是面向日常对话的说法。用户不需要对 Agent 说“读取 Continuity”或
+“查看 shared reality”，可以直接说：
+
+```text
+看一下我们的共同线。
+续上这条共同线。
+你现在接在哪条线？
+这条线现在是什么状态？
+```
+
+共同线指向的是某条 `shared_reality`：用户和 Agent 已经共同形成、需要被继续的
+现实线。它不是单纯记忆，不是情绪，也不是任务进度；它把已确认地面、当前位置、
+进入姿态、边界、误读风险和情绪质地放在同一个可接续的现实里。
+
+系统内部仍使用 `shared_reality`、`Continuity Packet`、`Session Thread` 等结构；
+“共同线”只是给人和 Agent 交流时使用的自然词。
+
 一个典型场景：
 
 ```text
@@ -121,7 +140,7 @@ Session Thread 是一条可续接的对话线或工作线。
 - `interpretation_status`
 - `user_confirmed`
 - `source_session`
-- `emotional_arc`
+- `emotional_arc`（兼容字段名；语义上是位置轨迹）
 
 多条线可以同时存在。比如工程讨论、陪伴聊天、长期规划、代码调试，都可以是不同
 的 Session Thread。
@@ -134,11 +153,14 @@ Session Thread 是一条可续接的对话线或工作线。
 `visibility` 默认为 `private`。只有标记为 `shared` 的线，才允许其他 Agent 在
 显式请求 shared 状态时看到。
 
-`emotional_arc` 是本线的情绪弧线（JSON 数组）。每次 `capture` 更新
-`last_position` 时，旧值自动归档为 `{position, archived_at}` 条目。
+`emotional_arc` 是历史兼容字段名，语义上是本线的位置轨迹（JSON 数组）。
+每次 `capture` 更新 `last_position` 时，旧值自动归档为
+`{position, archived_at}` 条目。
 相同 position 不会重复归档。Agent 也可通过 `--emotional-arc-entry`
-显式追加不改变 position 的情绪节点。SessionStart 时完整弧线注入
-Context，Agent 能看到全天的情绪轨迹，而不是只有最后一条位置。
+显式追加不改变 position 的位置节点。SessionStart 时完整轨迹注入
+Context，Agent 能看到这条线之前停在哪里，而不是只有最后一条位置。
+
+不要把 `emotional_arc` 当作情绪质地。情绪质地由 `affective_trace` 记录。
 
 更新已有 Thread 时也必须先通过 Agent 范围校验。普通 Agent 不应该用全局视图去
 修改其他 Agent 的私有线。
@@ -424,13 +446,16 @@ misread_risks       → 最可能的误读清单
 - `stability`：momentary（瞬时）/ session（会话内）/ confirmed（已确认）
 - `needs_review`：下次进入前是否需要复查
 
-### 与 emotional_arc / shared_reality 的关系
+### 与 position_history / shared_reality 的关系
 
 ```
-emotional_arc  → 位置变化轨迹。"之前停在哪里"
+emotional_arc / position_history → 位置变化轨迹。"之前停在哪里"
 affective_trace → 情绪质地轨迹。"最近的情绪混合是什么样"
 shared_reality → 主层。affective_trace 只能辅助，不能覆盖
 ```
+
+`position_history` 是 Continuity Packet 中更准确的新名字；`emotional_arc` 作为
+旧字段名继续保留，避免破坏已有数据和调用方。
 
 Packet 中 shared_reality 包含 affective_trace + affective_guardrail：
 > 情绪轨迹记录的是情绪质地，不是情绪命令。不要机械表演某种情绪，用它理解共同现实曾经如何被感受，然后谨慎重新进入。

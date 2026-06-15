@@ -602,7 +602,7 @@ async function viewThread(id) {
       <div class="detail-row"><span class="detail-label">用户确认</span><span class="detail-value">${t.user_confirmed ? '是' : '否'}</span></div>
       <div class="detail-row"><span class="detail-label">来源会话</span><span class="detail-value">${esc(t.source_session)}</span></div>
       <div class="detail-row"><span class="detail-label">备注</span><span class="detail-value">${esc(t.notes)}</span></div>
-      <div class="detail-row"><span class="detail-label">情绪弧线</span><span class="detail-value">${renderEmotionalArc(t.emotional_arc||[])}</span></div>
+      <div class="detail-row"><span class="detail-label">位置轨迹</span><span class="detail-value">${renderEmotionalArc(t.emotional_arc||[])}</span></div>
       <div class="detail-row"><span class="detail-label">🎭 情绪轨迹</span><span class="detail-value">${renderAffectiveTrace(t.affective_trace||[])}</span></div>
       <div class="detail-row"><span class="detail-label">💫 共同现实线</span><span class="detail-value">${esc(t.reality_line||'')}</span></div>
       <div class="detail-row"><span class="detail-label">🚪 进入姿态</span><span class="detail-value">${esc(t.entry_posture||'')}</span></div>

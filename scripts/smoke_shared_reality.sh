@@ -129,6 +129,9 @@ sr = p.get('shared_reality', {})
 assert 'reality_line' in sr, 'shared_reality missing reality_line'
 assert 'entry_posture' in sr, 'shared_reality missing entry_posture'
 assert 'confirmed_ground' in sr, 'shared_reality missing confirmed_ground'
+assert 'position_history' in sr, 'shared_reality missing position_history'
+assert 'emotional_arc' in sr, 'legacy emotional_arc missing'
+assert 'position_history' in p, 'top-level position_history missing'
 print('OK')
 " 2>/dev/null && green "resume shared_reality OK" || red "resume shared_reality failed"
 

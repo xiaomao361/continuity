@@ -88,6 +88,9 @@ def build_packet(
             if val:
                 shared_reality[key] = val
         if emotional_arc:
+            shared_reality["position_history"] = emotional_arc
+            # Backward-compatible legacy name. The content is position history,
+            # not affective trace.
             shared_reality["emotional_arc"] = emotional_arc
         # v1.5 affective trace
         affective_trace = thread.get("affective_trace", []) or []
@@ -131,6 +134,7 @@ def build_packet(
         "interpretation_status": interpretation_status,
         "user_confirmed": user_confirmed,
         "emotional_arc": emotional_arc,
+        "position_history": emotional_arc,
         "affective_trace": affective_trace,
         "boundary_notice": (
             "Continuity describes the shared reality position for this session. "

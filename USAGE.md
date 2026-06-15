@@ -6,6 +6,23 @@ Continuity 是 ClaraCore 里的状态续接系统。它回答：
 
 ## 核心概念
 
+### 共同线
+
+“共同线”是用户和 Agent 日常对话里的自然说法。它指的是某条
+`shared_reality`：我们当前共同站在哪条线上、怎么接回来、边界和误读风险是什么。
+
+你可以直接对 Agent 说：
+
+```text
+看一下我们的共同线。
+续上这条共同线。
+你现在接在哪条线？
+这条线现在是什么状态？
+这条线有什么边界和误读风险？
+```
+
+系统内部仍叫 Continuity / `shared_reality`；日常口语优先叫“共同线”。
+
 ### Agent State
 缓慢变化的长期 Agent 状态：交流方式、关系位置、长期偏好、边界。
 
@@ -54,10 +71,13 @@ Continuity 1.1 把“事实”和“当前解释”分开：
 
 这些字段属于当前接续状态，不是长期事实。
 
-### 情绪弧线 (v1.2)
+### 位置轨迹 / 历史位置 (v1.2)
 
-`emotional_arc` 记录一条线的情绪轨迹。每次 `capture` 更新 `last_position` 时，
-旧值自动归档到弧线，带时间戳。不丢历史。
+`emotional_arc` 是历史兼容字段名；现在语义上把它当作位置轨迹。每次
+`capture` 更新 `last_position` 时，旧值自动归档到轨迹，带时间戳。不丢历史。
+它回答“这条线之前停在哪里”，不是“当时是什么情绪”。
+
+情绪质地由 v1.5 的 `affective_trace` 记录。
 
 ```bash
 # 第一次 capture：早上状态
@@ -65,13 +85,13 @@ python3 cli.py capture --agent-id lara --thread-id thread_xxx \
   --last-position "早上互动亲密，毛仔心情不错"
 
 # 第二次 capture：中午状态
-# 旧值自动推入 emotional_arc，新值写入 last_position
+# 旧值自动推入位置轨迹（底层字段 emotional_arc），新值写入 last_position
 python3 cli.py capture --agent-id lara --thread-id thread_xxx \
   --last-position "中午讨论 capture 问题，有点烦躁"
 
-# 此时 emotional_arc 已有 1 条：早上那条
+# 此时位置轨迹已有 1 条：早上那条
 
-# 显式添加情绪节点（不改 last_position）
+# 显式添加位置节点（不改 last_position）
 python3 cli.py capture --agent-id lara --thread-id thread_xxx \
   --emotional-arc-entry "毛仔提到女儿小瑞，语气温柔"
 ```
@@ -79,8 +99,8 @@ python3 cli.py capture --agent-id lara --thread-id thread_xxx \
 自动归档规则：
 - `last_position` 变化时自动归档旧值
 - 相同 position 不重复归档
-- `--emotional-arc-entry` 显式追加，不影响 position
-- SessionStart 时完整弧线注入 Context
+- `--emotional-arc-entry` 显式追加位置节点，不影响 position
+- SessionStart 时完整位置轨迹注入 Context
 
 ### Router 动作
 
@@ -383,7 +403,7 @@ conda run -n zhouwei python3 skills/continuity/server/app.py --port 8001
 - **访问控制**：含共享数据 + 查看全部 Agent 复选框
 - **Threads**：Agent 彩标 + 共享标记 + 状态/Agent 双重筛选 + 编辑/关闭/合并
 - **Threads**：支持查看和编辑参考事实、当前解释、解释状态、用户确认
-- **Threads**：支持查看情绪弧线（v1.2），倒序展示每条归档的时间戳和位置
+- **Threads**：支持查看位置轨迹（底层兼容字段 `emotional_arc`），倒序展示每条归档的时间戳和位置
 - **Snapshots**：Agent 彩标 + 共享标记 + 详情/编辑/删除
 - **Handoffs**：Agent 彩标 + 详情/删除
 - **Agent State**：查看和编辑当前 Agent 长期状态
