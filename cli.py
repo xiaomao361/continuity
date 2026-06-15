@@ -80,6 +80,24 @@ def cmd_init(args):
     print("Tables created. Use --agent-id <id> to start capturing state.")
 
 
+def _build_affective_node(args) -> dict:
+    """Build an affective_trace node from CLI args. Returns None if nothing to add."""
+    if not args.affective_tone and not args.affective_note:
+        return None
+    node = {
+        "time": now_iso(),
+        "tone": args.affective_tone or "",
+        "valence": args.affective_valence or "unclear",
+        "signals": _csv_items(args.affective_signals) if args.affective_signals else [],
+        "intensity": args.affective_intensity or "medium",
+        "stability": args.affective_stability or "session",
+        "source": args.actor or "agent",
+        "note": args.affective_note or "",
+        "needs_review": bool(args.affective_needs_review),
+    }
+    return node
+
+
 def cmd_capture(args):
     """Create or update a Session Thread."""
     if args.thread_id:
@@ -143,6 +161,17 @@ def cmd_capture(args):
                 "archived_at": now_iso()
             })
             updates["emotional_arc"] = existing_arc
+        # v1.5 affective trace append
+        aff_node = _build_affective_node(args)
+        if aff_node:
+            existing_trace = existing.get("affective_trace", []) or []
+            if isinstance(existing_trace, str):
+                try:
+                    existing_trace = json.loads(existing_trace)
+                except (json.JSONDecodeError, TypeError):
+                    existing_trace = []
+            existing_trace.append(aff_node)
+            updates["affective_trace"] = existing_trace
         updates["last_active_at"] = now_iso()
         updates["updated_by"] = args.actor
         result = db.update_thread(args.thread_id, actor=args.actor, **updates)
@@ -171,6 +200,7 @@ def cmd_capture(args):
             provisional_read=args.provisional_read or "",
             boundary_notes=args.boundary_notes or "",
             misread_risks=args.misread_risks or "",
+            affective_trace=[aff_node] if (aff_node := _build_affective_node(args)) else [],
         )
         result = db.create_thread(thread, actor=args.actor)
         action = "Created"
@@ -779,6 +809,18 @@ def main():
     p_capture.add_argument("--provisional-read", help="Provisional interpretation (not confirmed fact)")
     p_capture.add_argument("--boundary-notes", help="Boundaries to respect when continuing")
     p_capture.add_argument("--misread-risks", help="What the next Agent is most likely to misread")
+    # v1.5 affective trace
+    p_capture.add_argument("--affective-tone", help="Affective tone description (triggers trace append)")
+    p_capture.add_argument("--affective-valence", choices=["positive", "negative", "mixed", "neutral", "unclear"],
+                           help="Coarse valence direction")
+    p_capture.add_argument("--affective-signals", help="Comma-separated signal words (e.g. warmth,trust)")
+    p_capture.add_argument("--affective-intensity", choices=["low", "medium", "high"],
+                           help="Emotional intensity")
+    p_capture.add_argument("--affective-stability", choices=["momentary", "session", "confirmed"],
+                           help="Stability of this emotional reading")
+    p_capture.add_argument("--affective-note", help="One-line human note for this affective node")
+    p_capture.add_argument("--affective-needs-review", action="store_true",
+                           help="Flag this node for review before next re-entry")
     p_capture.add_argument("--actor", default="agent", help="Who is performing this action")
     _add_agent_args(p_capture, visibility=True, filters=True)
 
