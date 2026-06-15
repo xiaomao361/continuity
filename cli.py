@@ -347,6 +347,22 @@ def cmd_resume(args):
         if packet["state_source"]:
             ss = packet["state_source"]
             print(f"State: {ss.get('name', ss.get('topic', ''))} ({ss.get('type', '')})")
+        sr = packet.get("shared_reality", {})
+        if sr:
+            print("Shared Reality:")
+            if sr.get("reality_line"):
+                print(f"  Line:       {sr['reality_line']}")
+            if sr.get("entry_posture"):
+                print(f"  Entry:      {sr['entry_posture']}")
+            if sr.get("confirmed_ground"):
+                print(f"  Confirmed:  {sr['confirmed_ground'][:80]}")
+            if sr.get("provisional_read"):
+                print(f"  Provisional:{sr['provisional_read'][:80]}")
+            if sr.get("boundary_notes"):
+                print(f"  Boundaries: {sr['boundary_notes'][:80]}")
+            if sr.get("misread_risks"):
+                print(f"  Misread:    {sr['misread_risks'][:80]}")
+        print(f"Boundary: {packet['boundary_notice'][:80]}...")
 
 
 def cmd_close(args):

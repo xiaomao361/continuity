@@ -77,8 +77,19 @@ def build_packet(
             seen.add(w)
             unique_warnings.append(w)
 
+    # v1.4 shared reality section
+    shared_reality = {}
+    if thread:
+        for key in ("reality_line", "entry_posture", "confirmed_ground",
+                     "provisional_read", "boundary_notes", "misread_risks"):
+            val = thread.get(key, "")
+            if val:
+                shared_reality[key] = val
+        if emotional_arc:
+            shared_reality["emotional_arc"] = emotional_arc
+
     packet = {
-        "version": 1,
+        "version": 2,
         "agent_id": agent_id,
         "action": action,
         "topic_source": routing["topic_source"],
@@ -86,15 +97,16 @@ def build_packet(
         "agent_state": agent_state,
         "thread": thread,
         "snapshot": snapshot,
+        "shared_reality": shared_reality,
         "facts_used": facts_used,
         "current_interpretation": current_interpretation,
         "interpretation_status": interpretation_status,
         "user_confirmed": user_confirmed,
         "emotional_arc": emotional_arc,
         "boundary_notice": (
-            "Continuity fields describe the current position for this session. "
-            "They are not durable facts. Write back to Memoria only when the "
-            "content is an observable fact."
+            "Continuity describes the shared reality position for this session. "
+            "It is not durable fact and not automatic consent. "
+            "Use it to re-enter carefully, not to assume permission."
         ),
         "warnings": unique_warnings,
         "next_response_posture": next_response_posture,
