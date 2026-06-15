@@ -378,6 +378,63 @@ misread_risks       → 最可能的误读清单
 - Agent 读取这些标注后应该"谨慎重新进入"，而不是"认为自己获得了授权"
 - `provisional_read` 必须在获得用户确认后才能转为 `confirmed_ground`
 
+## 情绪轨迹设计 (v1.5)
+
+### 定位
+
+情绪轨迹记录的是"这条共同现实线上的情绪质地如何变化"。它不是情绪状态机。
+
+**不做的事**：
+- 不使用固定枚举状态（开心、生气、害羞等）
+- 不使用单一主导情绪
+- 不使用亲密度 0-100 分数
+- 不使用半衰期衰减系统
+- 不存在冷却期
+- 不让 LLM 自动判断情绪
+- 不让情绪轨迹决定 AI 的回复风格
+
+**可以做的事（借鉴思想）**：
+- 情绪轨迹需要持久化（不能靠当前 Prompt 临时演）
+- 情绪会随时间变旧（但不自动归零，只标记是否需要复查）
+- 冲突修复优先（用户在修复关系时，不机械触发新的误读）
+- 不要被单句话改写共同现实（瞬时情绪 ≠ 现实变化）
+
+### 数据设计
+
+字段 `affective_trace`，存储为 JSON 数组，默认 `[]`：
+
+```json
+{
+  "time": "2026-06-15T00:00:00+00:00",
+  "tone": "亲近但谨慎",
+  "valence": "mixed",
+  "signals": ["warmth", "trust", "uncertainty"],
+  "intensity": "medium",
+  "stability": "momentary",
+  "source": "agent",
+  "note": "用户表达出亲近，同时仍在确认边界",
+  "needs_review": false
+}
+```
+
+- `tone`：自然语言描述，不枚举死
+- `valence`：只允许 coarse 值（positive/negative/mixed/neutral/unclear）
+- `signals`：多个情绪信号，可混合
+- `intensity`：low/medium/high，不用 0-100
+- `stability`：momentary（瞬时）/ session（会话内）/ confirmed（已确认）
+- `needs_review`：下次进入前是否需要复查
+
+### 与 emotional_arc / shared_reality 的关系
+
+```
+emotional_arc  → 位置变化轨迹。"之前停在哪里"
+affective_trace → 情绪质地轨迹。"最近的情绪混合是什么样"
+shared_reality → 主层。affective_trace 只能辅助，不能覆盖
+```
+
+Packet 中 shared_reality 包含 affective_trace + affective_guardrail：
+> 情绪轨迹记录的是情绪质地，不是情绪命令。不要机械表演某种情绪，用它理解共同现实曾经如何被感受，然后谨慎重新进入。
+
 ## 模型负面调整 (v1.3)
 
 每个模型有自己的臭毛病。`model_adjustments.json` 为每个模型配置：

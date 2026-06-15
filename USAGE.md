@@ -281,6 +281,51 @@ conda run -n zhouwei python3 skills/continuity/cli.py edit \
 > **注意**：这些字段是叙述性标注，不是长期事实。不要写成 Memoria 条目。
 > Continuity 不是许可系统——它用于谨慎重新进入，不是替 Agent 假设用户同意。
 
+### 情绪轨迹（v1.5）
+
+记录共同现实线上的情绪质地变化。不是情绪状态机——情绪可以混合，不使用固定枚举。
+
+```bash
+# 追加情绪轨迹节点
+conda run -n zhouwei python3 skills/continuity/cli.py capture \
+  --agent-id clara --thread-id thread_xxx \
+  --affective-tone "亲近但谨慎" \
+  --affective-valence mixed \
+  --affective-signals "warmth,trust,uncertainty" \
+  --affective-intensity medium \
+  --affective-stability session \
+  --affective-note "用户表达亲近，同时仍在确认边界" \
+  --last-position "当前位置" --next-step "下一步"
+
+# 标记需要在下次进入前复查
+conda run -n zhouwei python3 skills/continuity/cli.py capture \
+  --agent-id clara --thread-id thread_xxx \
+  --affective-tone "关系出现裂痕" \
+  --affective-valence negative \
+  --affective-needs-review \
+  --last-position "冲突后" --next-step "等待修复"
+
+# 清空情绪轨迹
+conda run -n zhouwei python3 skills/continuity/cli.py edit \
+  --agent-id clara --thread-id thread_xxx \
+  --clear-affective-trace
+```
+
+字段说明：
+
+| 字段 | 含义 | 可选值 |
+|---|---|---|
+| `tone` | 自然语言情绪描述 | 自由文本 |
+| `valence` | 粗略情绪方向 | positive/negative/mixed/neutral/unclear |
+| `signals` | 情绪信号词（可多个） | 逗号分隔，如 warmth,trust |
+| `intensity` | 情绪强度 | low/medium/high |
+| `stability` | 稳定性 | momentary/session/confirmed |
+| `note` | 人类可读备注 | 自由文本 |
+| `needs_review` | 下次进入前标记复查 | true/false |
+
+> **重要**：情绪轨迹记录的是情绪质地，不是情绪命令。不要机械表演某种情绪。
+> 瞬时情绪（momentary）不应改写共同现实。
+
 ### Agent State 管理
 
 ```bash
