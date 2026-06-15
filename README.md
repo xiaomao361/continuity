@@ -132,7 +132,8 @@ conda run -n zhouwei python3 skills/continuity/cli.py <command>
 | `resume` | 生成 Continuity Packet（支持 continue/fork/blend/reset） |
 | `close` | 关闭 Session Thread |
 | `edit` | 编辑 Thread 或 Snapshot 字段 |
-| `merge` | 合并两个 Thread |
+| `merge` | 合并两个 Thread（源线程物理删除） |
+| `model-adjust` | 管理模型负面调整（禁用短语/模式/注入提示词） |
 | `agent-state` | 查看或更新 Agent State |
 | `audit` | 查看审计事件 |
 | `delete` | 删除 Snapshot 或 Handoff |

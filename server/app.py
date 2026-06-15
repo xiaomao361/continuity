@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
 import json
 
-from continuity import db
+from continuity import db, model_adjustments
 from continuity.config import get_default_agent_id
 from continuity.models import now_iso
 
@@ -222,6 +222,42 @@ async def merge_threads(
     if not result:
         raise HTTPException(status_code=400, detail="Merge failed — check thread IDs")
     return result
+
+
+# ── Model Adjustments ──────────────────────────────────────
+
+@app.get("/api/model-adjustments")
+async def list_model_adjustments():
+    store = model_adjustments._load()
+    return store
+
+
+@app.get("/api/model-adjustments/{model}")
+async def get_model_adjustment(model: str):
+    entry = model_adjustments.get_model(model)
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"No adjustments for model '{model}'")
+    return entry
+
+
+@app.post("/api/model-adjustments/{model}")
+async def set_model_adjustment(model: str, body: dict):
+    result = model_adjustments.set_model(
+        model=model,
+        forbidden_phrases=body.get("forbidden_phrases"),
+        forbidden_patterns=body.get("forbidden_patterns"),
+        inject_prompt=body.get("inject_prompt"),
+        updated_by=body.get("updated_by", "user"),
+    )
+    return result
+
+
+@app.delete("/api/model-adjustments/{model}")
+async def delete_model_adjustment(model: str):
+    ok = model_adjustments.delete_model(model)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"No adjustments for model '{model}'")
+    return {"deleted": model}
 
 
 # ── Snapshots ──────────────────────────────────────────────

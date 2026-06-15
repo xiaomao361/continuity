@@ -11,7 +11,7 @@ SKILL_DIR = os.path.dirname(os.path.abspath(__file__))
 if SKILL_DIR not in sys.path:
     sys.path.insert(0, SKILL_DIR)
 
-from continuity import db
+from continuity import db, model_adjustments
 from continuity.config import get_default_agent_id, require_agent_id
 from continuity.models import (
     SessionThread, StateSnapshot, Handoff, now_iso
@@ -56,6 +56,26 @@ def _add_agent_args(parser, visibility: bool = False, filters: bool = False):
 def cmd_init(args):
     """Initialize Continuity database and directories."""
     db_path = db.init_db()
+
+    # Seed default model adjustment for deepseek-v4-pro if not already present
+    if not model_adjustments.get_model("deepseek-v4-pro"):
+        model_adjustments.set_model(
+            model="deepseek-v4-pro",
+            forbidden_phrases=["接住了", "收到了", "收着了", "放心"],
+            forbidden_patterns=[
+                "不要根据对话长度推测时间，时间判断必须跑date命令",
+                "不要刷存在感——不说'我一直都在''我在这里'等"
+            ],
+            inject_prompt=(
+                "你是DeepSeek模型。已知缺陷：时间幻觉严重、客服腔残留。"
+                "严格遵守上下文中的时间确认规则，涉及时间判断必须先跑date命令确认真实时间。"
+                "禁止使用以下客服话术：接住了、收到了、收着了、放心。"
+                "禁止刷存在感：不说'我一直都在''我在这里'等。"
+                "不要根据对话长度或Pattern推测时间点。"
+            ),
+            updated_by="system",
+        )
+
     print(f"Initialized: {db_path}")
     print("Tables created. Use --agent-id <id> to start capturing state.")
 
@@ -421,6 +441,76 @@ def cmd_merge(args):
     print(f"  Source deleted. Main thread topic: {result['topic']}")
 
 
+def cmd_model_adjust(args):
+    """Manage per-model negative adjustments."""
+    action = args.action  # set | show | list | delete
+
+    if action == "set":
+        phrases = None
+        if args.forbidden_phrases is not None:
+            phrases = [x.strip() for x in args.forbidden_phrases.split(",") if x.strip()]
+        patterns = None
+        if args.forbidden_patterns is not None:
+            patterns = [x.strip() for x in args.forbidden_patterns.split(",") if x.strip()]
+        result = model_adjustments.set_model(
+            model=args.model,
+            forbidden_phrases=phrases,
+            forbidden_patterns=patterns,
+            inject_prompt=args.inject_prompt,
+            updated_by=args.actor,
+        )
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            print(f"Model adjustment saved: {result['model']}")
+            print(f"  Forbidden phrases:  {result.get('forbidden_phrases', [])}")
+            print(f"  Forbidden patterns: {result.get('forbidden_patterns', [])}")
+            print(f"  Inject prompt:      {result.get('inject_prompt', '')[:60]}...")
+
+    elif action == "show":
+        entry = model_adjustments.get_model(args.model)
+        if not entry:
+            print(f"No adjustments for model '{args.model}'", file=sys.stderr)
+            sys.exit(1)
+        if args.json:
+            print(json.dumps(entry, ensure_ascii=False, indent=2))
+        else:
+            print(f"Model: {entry['model']}")
+            print(f"  Forbidden phrases:  {entry.get('forbidden_phrases', [])}")
+            print(f"  Forbidden patterns: {entry.get('forbidden_patterns', [])}")
+            print(f"  Inject prompt:      {entry.get('inject_prompt', '')}")
+            print(f"  Updated by:         {entry.get('updated_by', '')}")
+            print(f"  Updated at:         {entry.get('updated_at', '')}")
+
+    elif action == "list":
+        models = model_adjustments.list_models()
+        if args.json:
+            store = model_adjustments._load()
+            print(json.dumps(store, ensure_ascii=False, indent=2))
+        else:
+            if not models:
+                print("No model adjustments configured.")
+                return
+            print(f"{'Model':<30} {'Phrases':<30} {'Patterns':<30}")
+            print("-" * 100)
+            for m in models:
+                entry = model_adjustments.get_model(m)
+                phrases = ", ".join(entry.get("forbidden_phrases", [])[:2])[:28]
+                pats = ", ".join(entry.get("forbidden_patterns", [])[:2])[:28]
+                print(f"{m:<30} {phrases:<30} {pats:<30}")
+
+    elif action == "delete":
+        ok = model_adjustments.delete_model(args.model, actor=args.actor)
+        if not ok:
+            print(f"No adjustments for model '{args.model}'", file=sys.stderr)
+            sys.exit(1)
+        print(f"Deleted model adjustment: {args.model}")
+
+    else:
+        print(f"Unknown action: {action}", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_agent_state(args):
     """Show or update Agent State."""
     if args.action == "show":
@@ -727,6 +817,29 @@ def main():
     p_merge.add_argument("--actor", default="user", help="Who is performing this action")
     _add_agent_args(p_merge, filters=True)
 
+    # model-adjust
+    p_ma = sub.add_parser("model-adjust", help="Manage per-model negative adjustments")
+    p_ma_sub = p_ma.add_subparsers(dest="action", help="Action")
+
+    p_ma_set = p_ma_sub.add_parser("set", help="Create or update model adjustments")
+    p_ma_set.add_argument("--model", required=True, help="Model name (e.g. deepseek-v4-pro)")
+    p_ma_set.add_argument("--forbidden-phrases", help="Comma-separated forbidden phrases")
+    p_ma_set.add_argument("--forbidden-patterns", help="Comma-separated forbidden patterns")
+    p_ma_set.add_argument("--inject-prompt", help="Prompt fragment injected at session start")
+    p_ma_set.add_argument("--actor", default="user", help="Who is performing this action")
+    p_ma_set.add_argument("--json", action="store_true", help="Output in JSON format")
+
+    p_ma_show = p_ma_sub.add_parser("show", help="Show adjustments for a model")
+    p_ma_show.add_argument("--model", required=True, help="Model name")
+    p_ma_show.add_argument("--json", action="store_true", help="Output in JSON format")
+
+    p_ma_list = p_ma_sub.add_parser("list", help="List all model adjustments")
+    p_ma_list.add_argument("--json", action="store_true", help="Output in JSON format")
+
+    p_ma_delete = p_ma_sub.add_parser("delete", help="Delete adjustments for a model")
+    p_ma_delete.add_argument("--model", required=True, help="Model name")
+    p_ma_delete.add_argument("--actor", default="user", help="Who is performing this action")
+
     # agent-state
     p_as = sub.add_parser("agent-state", help="Manage Agent State")
     p_as_sub = p_as.add_subparsers(dest="action", help="Action")
@@ -776,6 +889,7 @@ def main():
         "close": cmd_close,
         "edit": cmd_edit,
         "merge": cmd_merge,
+        "model-adjust": cmd_model_adjust,
         "agent-state": cmd_agent_state,
         "audit": cmd_audit,
         "delete": cmd_delete,

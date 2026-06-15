@@ -218,6 +218,30 @@ conda run -n zhouwei python3 skills/continuity/cli.py merge \
 conda run -n zhouwei python3 skills/continuity/cli.py delete --agent-id codex --snapshot-id snapshot_xxx
 ```
 
+### 模型负面调整（v1.3）
+
+为不同模型配置禁用短语、行为模式、注入提示词，矫正模型特有的坏习惯。
+
+```bash
+# 设置模型调整
+conda run -n zhouwei python3 skills/continuity/cli.py model-adjust set \
+  --model deepseek-v4-pro \
+  --forbidden-phrases "接住了,收到了,收着了" \
+  --forbidden-patterns "时间幻觉,刷存在感" \
+  --inject-prompt "你是DeepSeek模型。禁止使用：接住了、收到了、收着了。时间判断必须跑date命令。"
+
+# 查看单个模型
+conda run -n zhouwei python3 skills/continuity/cli.py model-adjust show --model deepseek-v4-pro
+
+# 列出所有模型
+conda run -n zhouwei python3 skills/continuity/cli.py model-adjust list
+
+# 删除
+conda run -n zhouwei python3 skills/continuity/cli.py model-adjust delete --model deepseek-v4-pro
+```
+
+配置文件：`~/.claracore/continuity/model_adjustments.json`，附带 `version` 字段，可独立迁移。
+
 ### Agent State 管理
 
 ```bash
