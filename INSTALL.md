@@ -13,6 +13,14 @@
 conda run -n zhouwei pip install fastapi uvicorn
 ```
 
+安装 MCP 依赖：
+
+```bash
+conda run -n zhouwei pip install mcp
+# 或
+conda run -n zhouwei pip install -r requirements-mcp.txt
+```
+
 ## 安装步骤
 
 ```bash

@@ -192,6 +192,74 @@ audit_events。
 - 指定 Agent：只看当前 Agent 的私有状态，可选择包含 shared 状态
 - 查看全部 Agent：用于人工总览、排查和清理，不会创建空 Agent State
 
+## MCP Server
+
+Continuity 提供 MCP stdio 服务端，可供 Claude Code 等 MCP 客户端挂载。
+MCP server 是现有 continuity Python 函数的薄封装，不引入额外逻辑。
+
+### 安装依赖
+
+```bash
+conda run -n zhouwei pip install -r skills/continuity/requirements-mcp.txt
+```
+
+### 配置
+
+Claude Code `settings.json` 示例（推荐直接用 conda 环境的 python 路径，避免 `conda run` 的 stdio 缓冲问题）：
+
+```json
+{
+  "mcpServers": {
+    "continuity": {
+      "command": "/Users/zhouwei/miniconda3/envs/zhouwei/bin/python3",
+      "args": [
+        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp.py"
+      ],
+      "env": {
+        "CONTINUITY_AGENT_ID": "codex"
+      }
+    }
+  }
+}
+```
+
+如果必须用 `conda run`，需加 `--no-capture-output` 避免 stdout 被缓冲：
+
+```json
+{
+  "mcpServers": {
+    "continuity": {
+      "command": "conda",
+      "args": [
+        "run", "--no-capture-output", "-n", "zhouwei", "python",
+        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp.py"
+      ],
+      "env": {
+        "CONTINUITY_AGENT_ID": "codex"
+      }
+    }
+  }
+}
+```
+
+### 暴露的工具
+
+| 工具名 | 说明 |
+|--------|------|
+| `continuity_list_threads` | 列出某 Agent 的 Session Thread（共同线），支持按状态、解释状态过滤 |
+| `continuity_show_thread` | 查看一条 Thread 的完整详情（含共同现实字段、情绪轨迹） |
+| `continuity_resume` | 生成续接包（Continuity Packet），含共同现实、情绪轨迹、模型负面调整 |
+| `continuity_capture_thread` | 创建或更新一条 Session Thread。更新时旧 last_position 自动归档到 emotional_arc |
+| `continuity_close_thread` | 关闭一条 Thread（不删除数据） |
+| `continuity_agent_state` | 读取或更新 Agent State（通信风格、关系定位、长期偏好、边界等） |
+
+### 重要提醒
+
+- 正常使用必须传 `agent_id` 或设 `CONTINUITY_AGENT_ID` 环境变量。两者都没有会返回清晰错误。
+- 跨 Agent 查看需显式设置 `all_agents: true`（管理模式）。
+- `provisional_read` 是临时解读，不是事实，不是永久许可。必须获得用户确认后才能转为 `confirmed_ground`。
+- MCP 不自动写 Memoria，不自动跨 Agent 共享状态，不提供后台调度。
+
 ## SessionStart Hook
 
 在 `~/.claude/settings.json` 中配置 hook，Session 开始时自动注入当前
