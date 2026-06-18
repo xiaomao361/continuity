@@ -1,4 +1,4 @@
-# Continuity v1.2 使用指南
+# Continuity v1.5 使用指南
 
 Continuity 是 ClaraCore 里的状态续接系统。它回答：
 
@@ -366,6 +366,279 @@ conda run -n zhouwei python3 skills/continuity/cli.py agent-state update \
 conda run -n zhouwei python3 skills/continuity/cli.py audit
 conda run -n zhouwei python3 skills/continuity/cli.py audit --limit 20 --json
 ```
+
+## MCP Server（v1.5）
+
+Continuity 提供 MCP stdio 服务端，所有 CLI 功能通过 6 个 MCP 工具暴露。MCP server
+是现有 Python 函数的薄封装，不引入额外逻辑。Claude Code 等 MCP 客户端可直接挂载。
+
+### 安装依赖
+
+```bash
+conda run -n zhouwei pip install -r skills/continuity/requirements-mcp.txt
+```
+
+### 配置
+
+推荐直连 conda 环境的 python 路径，避免 `conda run` 的 stdio 缓冲问题：
+
+```json
+{
+  "mcpServers": {
+    "continuity": {
+      "command": "/Users/zhouwei/miniconda3/envs/zhouwei/bin/python3",
+      "args": [
+        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp.py"
+      ],
+      "env": {
+        "CONTINUITY_AGENT_ID": "codex"
+      }
+    }
+  }
+}
+```
+
+`conda run` 备选（需加 `--no-capture-output`）：
+
+```json
+{
+  "mcpServers": {
+    "continuity": {
+      "command": "conda",
+      "args": [
+        "run", "--no-capture-output", "-n", "zhouwei", "python",
+        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp.py"
+      ],
+      "env": {
+        "CONTINUITY_AGENT_ID": "codex"
+      }
+    }
+  }
+}
+```
+
+### 工具总览
+
+| 工具名 | 说明 |
+|--------|------|
+| `continuity_list_threads` | 列出某 Agent 的 Session Thread（共同线），支持按状态、解释状态过滤 |
+| `continuity_show_thread` | 查看一条 Thread 的完整详情（含共同现实字段、情绪轨迹） |
+| `continuity_resume` | 生成续接包（Continuity Packet），含共同现实、情绪轨迹、模型负面调整 |
+| `continuity_capture_thread` | 创建或更新一条 Session Thread。更新时旧 last_position 自动归档 |
+| `continuity_close_thread` | 关闭一条 Thread（不删除数据） |
+| `continuity_agent_state` | 读取或更新 Agent State（通信风格、关系定位、长期偏好、边界等） |
+
+### 工具参数详解
+
+#### `continuity_list_threads`
+
+列出线程，支持按状态 / 解释状态过滤。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `agent_id` | string | 否 | Agent 标识。未传则用 `CONTINUITY_AGENT_ID` 环境变量 |
+| `status` | string | 否 | 按状态过滤：`active` / `paused` / `closed` |
+| `interpretation_status` | string | 否 | 按解释状态过滤：`active` / `needs_review` / `stale` / `closed` |
+| `include_shared` | boolean | 否 | 是否包含 shared 可见性记录（默认 false） |
+| `all_agents` | boolean | 否 | 管理模式：列出所有 Agent 的线程（默认 false） |
+
+示例：
+
+```json
+// 列出 clara 的所有 active 线程
+{"agent_id": "clara", "status": "active"}
+
+// 列出所有 Agent 中需要复查解释的线程
+{"all_agents": true, "interpretation_status": "needs_review"}
+```
+
+#### `continuity_show_thread`
+
+查看单条 Thread 完整详情，含共同现实字段和情绪轨迹。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `thread_id` | string | **是** | Thread ID |
+| `agent_id` | string | 否 | Agent 标识 |
+| `include_shared` | boolean | 否 | 默认 false |
+| `all_agents` | boolean | 否 | 默认 false |
+
+示例：
+
+```json
+{"thread_id": "thread_8b0393752b13", "agent_id": "clara"}
+```
+
+#### `continuity_resume`
+
+生成续接包，包含 shared_reality、affective_trace、position_history、model_adjustments。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `action` | string | 否 | 续接动作：`continue` / `fork` / `blend` / `reset`（默认 continue） |
+| `thread_id` | string | 否 | Thread ID（continue / fork / reset 时用） |
+| `topic_thread_id` | string | 否 | 主题 Thread ID（blend 时用） |
+| `state_snapshot_id` | string | 否 | 状态快照 ID（blend 时用） |
+| `agent_id` | string | 否 | Agent 标识 |
+| `include_shared` | boolean | 否 | 默认 false |
+| `all_agents` | boolean | 否 | 默认 false |
+| `model` | string | 否 | 模型名，用于加载对应的负面调整 |
+
+示例：
+
+```json
+// 从同一条线继续
+{"agent_id": "clara", "thread_id": "thread_xxx", "action": "continue", "model": "deepseek-v4-pro"}
+
+// blend：话题从 A 线，状态从 B 快照
+{"agent_id": "clara", "topic_thread_id": "thread_xxx", "state_snapshot_id": "snapshot_yyy", "action": "blend"}
+```
+
+#### `continuity_capture_thread`
+
+创建或更新一条 Thread。不传 `thread_id` 创建新线程，传了则更新已有线程。
+更新时旧 `last_position` 自动归档到 emotional_arc。
+
+**创建新线程：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `agent_id` | string | 是 | Agent 标识（创建时必填，或设环境变量） |
+| `topic` | string | 否 | 线程主题 |
+| `mode` | string | 否 | 线程模式：`engineering` / `companion` / `planning` / `review` / `general`（默认 general） |
+| `visibility` | string | 否 | `private` / `shared`（默认 private） |
+| `last_position` | string | 否 | 当前进度描述 |
+| `next_step` | string | 否 | 下一步 |
+| `state_summary` | string | 否 | 状态摘要 |
+| `facts_used` | array | 否 | 引用的记忆 / 事实 ID 列表 |
+| `current_interpretation` | string | 否 | 当前解释（基于事实的推断） |
+| `interpretation_status` | string | 否 | `active` / `needs_review` / `stale` / `closed`（默认 active） |
+| `user_confirmed` | boolean | 否 | 当前解释是否已获用户确认（默认 false） |
+| `source_session` | string | 否 | 来源会话标识 |
+| `tags` | array | 否 | 标签列表 |
+| `notes` | string | 否 | 附加备注 |
+| `reality_line` | string | 否 | 共同现实线描述 |
+| `entry_posture` | string | 否 | 下次进入姿态 |
+| `confirmed_ground` | string | 否 | 已共同确认的地面 |
+| `provisional_read` | string | 否 | 临时解读（非事实，非永久许可） |
+| `boundary_notes` | string | 否 | 继续时必须尊重的边界 |
+| `misread_risks` | string | 否 | Agent 最容易误读的地方 |
+| `affective_tone` | string | 否 | 情绪质地描述（触发情绪轨迹追加） |
+| `affective_valence` | string | 否 | 粗略情绪方向：`positive` / `negative` / `mixed` / `neutral` / `unclear` |
+| `affective_signals` | string | 否 | 逗号分隔信号词（如 `warmth,trust`） |
+| `affective_intensity` | string | 否 | 情绪强度：`low` / `medium` / `high` |
+| `affective_stability` | string | 否 | 稳定性：`momentary` / `session` / `confirmed` |
+| `affective_note` | string | 否 | 一行人类可读的情绪注释 |
+| `affective_needs_review` | boolean | 否 | 标记此节点需要复查 |
+
+**更新已有线程：**
+
+传 `thread_id` + 要更新的字段。`all_agents: true` 不允许用于创建新线程。
+
+示例：
+
+```json
+// 创建带共同现实的陪伴线
+{
+  "agent_id": "clara",
+  "topic": "陪伴线",
+  "mode": "companion",
+  "reality_line": "昨晚逐步建立的亲密关系线",
+  "entry_posture": "自然延续，不要重新宣布关系",
+  "confirmed_ground": "已确认：基础信任和沟通方式",
+  "provisional_read": "当前阶段在探索各自的边界",
+  "boundary_notes": "不要假设永久许可，不要跳过确认",
+  "misread_risks": "不要把昨晚状态机械套到今天",
+  "last_position": "早上告别",
+  "next_step": "下次自然接续"
+}
+
+// 更新位置并追加情绪节点
+{
+  "agent_id": "clara",
+  "thread_id": "thread_8b0393752b13",
+  "last_position": "反脆弱教学完成，关系进入更深层次",
+  "next_step": "日常陪伴",
+  "affective_tone": "亲近但放松",
+  "affective_valence": "positive",
+  "affective_signals": "warmth,trust",
+  "affective_intensity": "medium",
+  "affective_stability": "session",
+  "affective_note": "毛仔从'大概明白了'被逼出深度，推到递归悖论"
+}
+```
+
+#### `continuity_close_thread`
+
+关闭一条 Thread，不删除数据。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `thread_id` | string | **是** | 要关闭的 Thread ID |
+| `agent_id` | string | 否 | Agent 标识 |
+| `include_shared` | boolean | 否 | 默认 false |
+| `all_agents` | boolean | 否 | 默认 false |
+| `actor` | string | 否 | 操作者（默认 mcp） |
+
+示例：
+
+```json
+{"thread_id": "thread_xxx", "agent_id": "clara"}
+```
+
+#### `continuity_agent_state`
+
+读取或更新 Agent State。不传 `update` 则只读，传了则更新指定字段。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `agent_id` | string | 是 | Agent 标识（或设环境变量） |
+| `update` | object | 否 | 要更新的字段，不传则只读 |
+| `actor` | string | 否 | 操作者（默认 mcp） |
+
+`update` 支持的字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `communication_style` | string | 通信风格 |
+| `relationship_position` | string | 关系定位 |
+| `long_term_preferences` | array | 长期偏好 |
+| `boundaries` | array | 边界 |
+| `stable_patterns` | array | 稳定模式 |
+| `notes` | string | 备注 |
+
+示例：
+
+```json
+// 只读
+{"agent_id": "clara"}
+
+// 更新
+{
+  "agent_id": "clara",
+  "update": {
+    "communication_style": "直接、有温度、不端着",
+    "boundaries": ["不假设永久许可", "不跳过确认"]
+  }
+}
+```
+
+### MCP vs CLI 选择
+
+| 场景 | 推荐方式 |
+|------|---------|
+| Claude Code / MCP 客户端中实时读写 | MCP |
+| 脚本 / 定时任务 / 批量操作 | CLI |
+| 人工排查、总览、合并、删除 | CLI 或 Web 管理界面 |
+| SessionStart Hook 自动注入 | CLI（hook 脚本） |
+
+### 重要提醒
+
+- 正常使用必须传 `agent_id` 或设 `CONTINUITY_AGENT_ID`。两者都没有返回清晰错误。
+- 跨 Agent 查看需显式设 `all_agents: true`（管理模式）。
+- `provisional_read` 是临时解读，不是事实，不是永久许可。必须用户确认后才能转为 `confirmed_ground`。
+- MCP 不自动写 Memoria，不自动跨 Agent 共享状态，不提供后台调度。
+- 情绪轨迹记录的是情绪质地，不是情绪命令。`stability=momentary` 的瞬时情绪不应改写共同现实。
 
 ## 与 Memoria 的关系
 
