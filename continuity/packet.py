@@ -15,8 +15,14 @@ def build_packet(
     include_shared: bool = False,
     all_agents: bool = False,
     model: Optional[str] = None,
+    full_arc: bool = False,
 ) -> dict:
-    """Build a full Continuity Packet for an agent to read at session start."""
+    """Build a full Continuity Packet for an agent to read at session start.
+
+    full_arc=False (default): truncate emotional_arc and affective_trace to
+    last 5 entries. Confirmed affective nodes are always kept. Pass
+    full_arc=True to get the complete history.
+    """
 
     agent_state = db.get_agent_state(agent_id)
 
@@ -70,6 +76,17 @@ def build_packet(
         user_confirmed = bool(thread.get("user_confirmed", False))
         emotional_arc = thread.get("emotional_arc", []) or []
 
+    # v1.6: arc truncation — default to last 5, like memoria recall --limit 5
+    arc_truncated = False
+    omitted_emotional = 0
+    omitted_affective = 0
+
+    if not full_arc:
+        if len(emotional_arc) > 5:
+            omitted_emotional = len(emotional_arc) - 5
+            emotional_arc = emotional_arc[-5:]
+            arc_truncated = True
+
     # Deduplicate warnings
     seen = set()
     unique_warnings = []
@@ -80,7 +97,8 @@ def build_packet(
 
     # v1.4 shared reality section
     shared_reality = {}
-    affective_trace = []
+    affective_trace_full = thread.get("affective_trace", []) or [] if thread else []
+    affective_trace = list(affective_trace_full)  # copy before possibly mutating
     if thread:
         for key in ("reality_line", "entry_posture", "confirmed_ground",
                      "provisional_read", "boundary_notes", "misread_risks"):
@@ -92,9 +110,16 @@ def build_packet(
             # Backward-compatible legacy name. The content is position history,
             # not affective trace.
             shared_reality["emotional_arc"] = emotional_arc
-        # v1.5 affective trace
-        affective_trace = thread.get("affective_trace", []) or []
+        # v1.5 affective trace — truncate when full_arc=False
         if affective_trace:
+            if not full_arc and len(affective_trace) > 5:
+                # Keep all confirmed nodes + last 5 session/momentary nodes
+                confirmed = [n for n in affective_trace if n.get("stability") == "confirmed"]
+                transient = [n for n in affective_trace if n.get("stability") != "confirmed"]
+                kept_transient = transient[-5:] if len(transient) > 5 else transient
+                affective_trace = confirmed + kept_transient
+                omitted_affective = len(affective_trace_full) - len(affective_trace)
+                arc_truncated = True
             shared_reality["affective_trace"] = affective_trace
             # Guardrail: trace records texture, not commands
             shared_reality["affective_guardrail"] = (
@@ -136,6 +161,14 @@ def build_packet(
         "emotional_arc": emotional_arc,
         "position_history": emotional_arc,
         "affective_trace": affective_trace,
+        "arc_truncated": arc_truncated,
+        "emotional_arc_omitted": omitted_emotional,
+        "affective_trace_omitted": omitted_affective,
+        "arc_truncation_notice": (
+            f"Arc truncated: {omitted_emotional} position(s) and "
+            f"{omitted_affective} affective node(s) omitted. "
+            f"Use --full-arc (CLI) or full_arc:true (MCP) to get complete history."
+        ) if arc_truncated else "",
         "boundary_notice": (
             "Continuity describes the shared reality position for this session. "
             "It is not durable fact and not automatic consent. "

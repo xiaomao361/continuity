@@ -1,4 +1,4 @@
-# Continuity v1.5 使用指南
+# Continuity v1.6 使用指南
 
 Continuity 是 ClaraCore 里的状态续接系统。它回答：
 
@@ -301,6 +301,20 @@ conda run -n zhouwei python3 skills/continuity/cli.py edit \
 > **注意**：这些字段是叙述性标注，不是长期事实。不要写成 Memoria 条目。
 > Continuity 不是许可系统——它用于谨慎重新进入，不是替 Agent 假设用户同意。
 
+### 弧线截断（v1.6）
+
+`continuity_resume` 默认只返回最近 5 条 emotional_arc 和 affective_trace。
+与 Memoria `recall --limit 5` 设计一致——默认精简，按需全量。
+
+截断规则：
+- **emotional_arc**：保留最近 5 条位置历史
+- **affective_trace**：保留所有 `stability=confirmed` 节点 + 最近 5 条 `session`/`momentary` 节点
+- Packet 包含 `arc_truncated`、`emotional_arc_omitted`、`affective_trace_omitted` 字段告知省略数量
+
+获取完整历史：
+- CLI：`--full-arc`
+- MCP：`{"full_arc": true}`
+
 ### 情绪轨迹（v1.5）
 
 记录共同现实线上的情绪质地变化。不是情绪状态机——情绪可以混合，不使用固定枚举。
@@ -367,7 +381,7 @@ conda run -n zhouwei python3 skills/continuity/cli.py audit
 conda run -n zhouwei python3 skills/continuity/cli.py audit --limit 20 --json
 ```
 
-## MCP Server（v1.5）
+## MCP Server（v1.6）
 
 Continuity 提供 MCP stdio 服务端，所有 CLI 功能通过 6 个 MCP 工具暴露。MCP server
 是现有 Python 函数的薄封装，不引入额外逻辑。Claude Code 等 MCP 客户端可直接挂载。
@@ -483,12 +497,16 @@ conda run -n zhouwei pip install -r skills/continuity/requirements-mcp.txt
 | `include_shared` | boolean | 否 | 默认 false |
 | `all_agents` | boolean | 否 | 默认 false |
 | `model` | string | 否 | 模型名，用于加载对应的负面调整 |
+| `full_arc` | boolean | 否 | 返回完整 emotional_arc 和 affective_trace。默认 false（最近 5 条） |
 
 示例：
 
 ```json
-// 从同一条线继续
+// 从同一条线继续（默认截断弧线到最近 5 条）
 {"agent_id": "clara", "thread_id": "thread_xxx", "action": "continue", "model": "deepseek-v4-pro"}
+
+// 获取完整弧线历史
+{"agent_id": "clara", "thread_id": "thread_xxx", "action": "continue", "full_arc": true}
 
 // blend：话题从 A 线，状态从 B 快照
 {"agent_id": "clara", "topic_thread_id": "thread_xxx", "state_snapshot_id": "snapshot_yyy", "action": "blend"}

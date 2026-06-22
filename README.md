@@ -1,4 +1,4 @@
-# Continuity Protocol v1.5
+# Continuity Protocol v1.6
 
 Continuity 是 ClaraCore 里的状态续接层。
 

@@ -36,7 +36,7 @@ from continuity import db, packet as packet_mod
 from continuity.config import get_default_agent_id
 from continuity.models import SessionThread, now_iso
 
-server = Server("continuity", version="1.5.0")
+server = Server("continuity", version="1.6.0")
 
 # ── Helpers ────────────────────────────────────────────────────
 
@@ -203,6 +203,11 @@ _TOOLS = [
                 "include_shared": {"type": "boolean", "default": False},
                 "all_agents": {"type": "boolean", "default": False},
                 "model": {"type": "string", "description": "模型名，用于加载对应的负面调整"},
+                "full_arc": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "返回完整 emotional_arc 和 affective_trace。默认 false（最近 5 条）",
+                },
             },
         },
     ),
@@ -260,7 +265,7 @@ _TOOLS = [
                 "actor": {"type": "string", "default": "mcp", "description": "操作者"},
                 "include_shared": {"type": "boolean", "default": False},
                 "all_agents": {"type": "boolean", "default": False},
-                # v1.5 affective trace
+                # v1.6 affective trace
                 "affective_tone": {"type": "string", "description": "情绪质地描述（触发情绪轨迹追加）"},
                 "affective_valence": {
                     "type": "string",
@@ -377,6 +382,7 @@ async def handle_call_tool(name: str, arguments: dict):
                 include_shared=bool(arguments.get("include_shared", False)),
                 all_agents=bool(arguments.get("all_agents", False)),
                 model=arguments.get("model"),
+                full_arc=bool(arguments.get("full_arc", False)),
             )
             return [TextContent(type="text", text=_json(packet))]
 

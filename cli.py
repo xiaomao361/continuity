@@ -370,6 +370,7 @@ def cmd_resume(args):
         include_shared=args.include_shared,
         all_agents=args.all_agents,
         model=getattr(args, "model", None),
+        full_arc=getattr(args, "full_arc", False),
     )
 
     if args.json:
@@ -405,7 +406,9 @@ def cmd_resume(args):
         print(f"Boundary: {packet['boundary_notice'][:80]}...")
         at = packet.get("affective_trace", []) or []
         if at:
-            print(f"Affective Trace ({len(at)} nodes):")
+            omitted = packet.get("affective_trace_omitted", 0)
+            suffix = f" (+{omitted} omitted)" if omitted else ""
+            print(f"Affective Trace ({len(at)} nodes{suffix}):")
             for node in at[-3:]:
                 rflag = " [REVIEW]" if node.get("needs_review") else ""
                 print(f"  [{node.get('stability','?')}] {node.get('tone','')} "
@@ -413,6 +416,8 @@ def cmd_resume(args):
             sr = packet.get("shared_reality", {})
             if sr.get("affective_guardrail"):
                 print(f"  ⚠ {sr['affective_guardrail'][:100]}...")
+        if packet.get("arc_truncated"):
+            print(f"⚠ {packet.get('arc_truncation_notice', 'Arc was truncated.')}")
         ma = packet.get("model_adjustment")
         if ma:
             print(f"Model Adjustment ({ma['model']}):")
@@ -907,6 +912,8 @@ def main():
     p_resume.add_argument("--topic-thread-id", help="Topic thread ID (for blend)")
     p_resume.add_argument("--state-snapshot-id", help="State snapshot ID (for blend)")
     p_resume.add_argument("--model", help="Model name to include negative adjustments in packet")
+    p_resume.add_argument("--full-arc", action="store_true",
+                          help="Return complete emotional_arc and affective_trace (default: last 5)")
     _add_agent_args(p_resume, filters=True)
 
     # close
