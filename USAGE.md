@@ -402,7 +402,7 @@ conda run -n zhouwei pip install -r skills/continuity/requirements-mcp.txt
     "continuity": {
       "command": "/Users/zhouwei/miniconda3/envs/zhouwei/bin/python3",
       "args": [
-        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp.py"
+        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp_server.py"
       ],
       "env": {
         "CONTINUITY_AGENT_ID": "codex"
@@ -421,7 +421,7 @@ conda run -n zhouwei pip install -r skills/continuity/requirements-mcp.txt
       "command": "conda",
       "args": [
         "run", "--no-capture-output", "-n", "zhouwei", "python",
-        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp.py"
+        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp_server.py"
       ],
       "env": {
         "CONTINUITY_AGENT_ID": "codex"

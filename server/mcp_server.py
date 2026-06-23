@@ -4,14 +4,14 @@
 共同线 MCP 入口。每个 MCP tool 直接映射到 continuity 包的对应函数。
 
 使用方式:
-    python server/mcp.py
+    python server/mcp_server.py
     # Claude Code settings.json（推荐直连 conda 环境 python）:
     # { "mcpServers": { "continuity": {
     #     "command": "/Users/zhouwei/miniconda3/envs/zhouwei/bin/python3",
-    #     "args": ["/path/to/server/mcp.py"],
+    #     "args": ["/path/to/server/mcp_server.py"],
     #     "env": { "CONTINUITY_AGENT_ID": "codex" }
     # }}}
-    # 备用：conda run --no-capture-output -n zhouwei python server/mcp.py
+    # 备用：conda run --no-capture-output -n zhouwei python server/mcp_server.py
 """
 
 import asyncio
@@ -20,12 +20,10 @@ import os
 import sys
 from pathlib import Path
 
+# 文件名为 mcp_server.py，不与官方 mcp 包同名，可直接 import。
+# 只需把项目根加入 sys.path，让 `import continuity.*` 可被解析。
 SERVER_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SERVER_DIR.parent
-sys.path = [
-    path for path in sys.path
-    if path and Path(path).resolve() != SERVER_DIR
-]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from mcp.server import Server
@@ -36,7 +34,7 @@ from continuity import db, packet as packet_mod
 from continuity.config import get_default_agent_id
 from continuity.models import SessionThread, now_iso
 
-server = Server("continuity", version="1.6.0")
+server = Server("continuity", version="1.6.1")
 
 # ── Helpers ────────────────────────────────────────────────────
 

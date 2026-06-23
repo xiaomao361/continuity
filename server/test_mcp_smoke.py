@@ -18,7 +18,7 @@ from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SERVER_DIR = SKILL_DIR / "server"
-MCP_SERVER = SERVER_DIR / "mcp.py"
+MCP_SERVER = SERVER_DIR / "mcp_server.py"
 TMP_ROOT = Path(tempfile.mkdtemp(prefix="continuity-mcp-smoke-"))
 
 # Use direct Python binary from conda env — conda run buffers stdio

@@ -213,7 +213,7 @@ Claude Code `settings.json` 示例（推荐直接用 conda 环境的 python 路�
     "continuity": {
       "command": "/Users/zhouwei/miniconda3/envs/zhouwei/bin/python3",
       "args": [
-        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp.py"
+        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp_server.py"
       ],
       "env": {
         "CONTINUITY_AGENT_ID": "codex"
@@ -232,7 +232,7 @@ Claude Code `settings.json` 示例（推荐直接用 conda 环境的 python 路�
       "command": "conda",
       "args": [
         "run", "--no-capture-output", "-n", "zhouwei", "python",
-        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp.py"
+        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp_server.py"
       ],
       "env": {
         "CONTINUITY_AGENT_ID": "codex"
@@ -290,7 +290,7 @@ Agent 读取注入的 `<!-- CONTINUITY_RECALL -->` 数据，判断最匹配的 T
 - **fix**: SQLite 连接加 `timeout=10` + `PRAGMA journal_mode=WAL`，解决
   Hermes / Claude Code 多进程 MCP server 并发访问时的 `SQLITE_BUSY` 锁冲突。
   与 memoria v6.11 对齐。
-- 涉及文件：`continuity/db.py`、`server/app.py`、`server/mcp.py`
+- 涉及文件：`continuity/db.py`、`server/app.py`、`server/mcp_server.py`
 
 ### v1.6.0
 
