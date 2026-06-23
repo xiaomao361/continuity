@@ -1,4 +1,4 @@
-# Continuity v1.6 使用指南
+# Continuity v1.6.1 使用指南
 
 Continuity 是 ClaraCore 里的状态续接系统。它回答：
 

@@ -1,3 +1,3 @@
-"""Continuity v1.2 — State continuation layer for ClaraCore."""
+"""Continuity v1.6.1 — State continuation layer for ClaraCore."""
 
-__version__ = "1.2.0"
+__version__ = "1.6.1"

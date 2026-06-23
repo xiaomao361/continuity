@@ -97,8 +97,9 @@ CREATE TABLE IF NOT EXISTS audit_events (
 def _connect() -> sqlite3.Connection:
     ensure_directories()
     db_path = get_db_path()
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=10)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 

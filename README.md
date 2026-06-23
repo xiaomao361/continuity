@@ -1,4 +1,4 @@
-# Continuity Protocol v1.6
+# Continuity Protocol v1.6.1
 
 Continuity 是 ClaraCore 里的状态续接层。
 
@@ -118,7 +118,7 @@ Continuity 回答：
 Agent 可以自己决定什么时候取记忆、写记忆。Continuity 不应该把"记忆调用"做成
 自己的核心流程。
 
-当前 v1.2 边界：
+当前 v1.6.1 边界：
 
 ```text
 Memoria 存事实。
@@ -282,3 +282,35 @@ Agent 的 Thread/Snapshot/Agent State：
 
 Agent 读取注入的 `<!-- CONTINUITY_RECALL -->` 数据，判断最匹配的 Thread，
 让用户选择要继续的状态。
+
+## Changelog
+
+### v1.6.1 (2026-06-23)
+
+- **fix**: SQLite 连接加 `timeout=10` + `PRAGMA journal_mode=WAL`，解决
+  Hermes / Claude Code 多进程 MCP server 并发访问时的 `SQLITE_BUSY` 锁冲突。
+  与 memoria v6.11 对齐。
+- 涉及文件：`continuity/db.py`、`server/app.py`、`server/mcp.py`
+
+### v1.6.0
+
+- MCP Server 完整实现（stdio transport，6 个工具）
+- 弧线截断：resume 默认返回最近 5 条 emotional_arc + 5 条 affective_trace
+- 共同现实字段：reality_line、entry_posture、confirmed_ground、provisional_read、
+  boundary_notes、misread_risks
+
+### v1.5.0
+
+- Affective Trace（情绪轨迹）：轻量情绪质地记录
+
+### v1.4.0
+
+- 共同现实字段设计
+
+### v1.3.0
+
+- 模型负面调整（model_adjustments）
+
+### v1.2.0
+
+- 初始版本：Session Thread、State Snapshot、Handoff、Continuity Packet

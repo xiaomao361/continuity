@@ -61,8 +61,9 @@ async def dashboard(
     # Per-agent thread counts
     import sqlite3
     from continuity.config import get_db_path
-    conn = sqlite3.connect(get_db_path())
+    conn = sqlite3.connect(get_db_path(), timeout=10)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
     per_agent_rows = conn.execute(
         "SELECT agent_id, COUNT(*) as cnt, SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) as active_cnt FROM session_threads GROUP BY agent_id"
     ).fetchall()
@@ -92,8 +93,9 @@ async def list_agents():
     """Return all known agent IDs and their thread/snapshot/handoff counts."""
     import sqlite3
     from continuity.config import get_db_path
-    conn = sqlite3.connect(get_db_path())
+    conn = sqlite3.connect(get_db_path(), timeout=10)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
 
     # Collect agents from threads
     thread_agents = conn.execute(
