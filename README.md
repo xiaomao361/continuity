@@ -152,7 +152,7 @@ SQL 比分散 JSON 文件更适合。
 所有命令通过 CLI 使用：
 
 ```bash
-conda run -n zhouwei python3 skills/continuity/cli.py <command>
+conda run -n zhouwei python3 services/continuity/cli.py <command>
 ```
 
 | 命令 | 说明 |
@@ -179,7 +179,7 @@ conda run -n zhouwei python3 skills/continuity/cli.py <command>
 ## Web 管理界面
 
 ```bash
-conda run -n zhouwei python3 skills/continuity/server/app.py --port 8001
+conda run -n zhouwei python3 services/continuity/server/app.py --port 8001
 # 浏览器打开 http://127.0.0.1:8001
 ```
 
@@ -200,7 +200,7 @@ MCP server 是现有 continuity Python 函数的薄封装，不引入额外逻�
 ### 安装依赖
 
 ```bash
-conda run -n zhouwei pip install -r skills/continuity/requirements-mcp.txt
+conda run -n zhouwei pip install -r services/continuity/requirements-mcp.txt
 ```
 
 ### 配置
@@ -213,7 +213,7 @@ Claude Code `settings.json` 示例（推荐直接用 conda 环境的 python 路�
     "continuity": {
       "command": "/Users/zhouwei/miniconda3/envs/zhouwei/bin/python3",
       "args": [
-        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp_server.py"
+        "/Users/zhouwei/Documents/ClaraCore/services/continuity/server/mcp_server.py"
       ],
       "env": {
         "CONTINUITY_AGENT_ID": "codex"
@@ -232,7 +232,7 @@ Claude Code `settings.json` 示例（推荐直接用 conda 环境的 python 路�
       "command": "conda",
       "args": [
         "run", "--no-capture-output", "-n", "zhouwei", "python",
-        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp_server.py"
+        "/Users/zhouwei/Documents/ClaraCore/services/continuity/server/mcp_server.py"
       ],
       "env": {
         "CONTINUITY_AGENT_ID": "codex"

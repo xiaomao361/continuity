@@ -116,14 +116,14 @@ python3 cli.py capture --agent-id lara --thread-id thread_xxx \
 ### 初始化
 
 ```bash
-conda run -n zhouwei python3 skills/continuity/cli.py init
+conda run -n zhouwei python3 services/continuity/cli.py init
 ```
 
 ### 创建/更新 Thread
 
 ```bash
 # 创建新 Thread
-conda run -n zhouwei python3 skills/continuity/cli.py capture \
+conda run -n zhouwei python3 services/continuity/cli.py capture \
   --agent-id codex \
   --topic "Continuity v1 设计讨论" \
   --mode engineering \
@@ -136,7 +136,7 @@ conda run -n zhouwei python3 skills/continuity/cli.py capture \
   --source-session "codex-2026-06-12"
 
 # 更新已有 Thread
-conda run -n zhouwei python3 skills/continuity/cli.py capture \
+conda run -n zhouwei python3 services/continuity/cli.py capture \
   --agent-id codex \
   --thread-id thread_xxx \
   --last-position "已完成 CLI 实现"
@@ -146,34 +146,34 @@ conda run -n zhouwei python3 skills/continuity/cli.py capture \
 
 ```bash
 # 列出所有 Thread
-conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id codex
+conda run -n zhouwei python3 services/continuity/cli.py list --agent-id codex
 
 # 只看 active
-conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id codex --status active
+conda run -n zhouwei python3 services/continuity/cli.py list --agent-id codex --status active
 
 # 只看需要复查的当前解释
-conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id codex --interpretation-status needs_review
+conda run -n zhouwei python3 services/continuity/cli.py list --agent-id codex --interpretation-status needs_review
 
 # 查看某个 Agent 自己的状态
-conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id lara
+conda run -n zhouwei python3 services/continuity/cli.py list --agent-id lara
 
 # 包含显式共享的状态
-conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id codex --include-shared
+conda run -n zhouwei python3 services/continuity/cli.py list --agent-id codex --include-shared
 
 # 管理后台总览全部 Agent
-conda run -n zhouwei python3 skills/continuity/cli.py list --all-agents
+conda run -n zhouwei python3 services/continuity/cli.py list --all-agents
 
 # JSON 格式
-conda run -n zhouwei python3 skills/continuity/cli.py list --agent-id codex --json
+conda run -n zhouwei python3 services/continuity/cli.py list --agent-id codex --json
 
 # 查看详情
-conda run -n zhouwei python3 skills/continuity/cli.py show --agent-id codex --thread-id thread_xxx
+conda run -n zhouwei python3 services/continuity/cli.py show --agent-id codex --thread-id thread_xxx
 ```
 
 ### 保存 State Snapshot
 
 ```bash
-conda run -n zhouwei python3 skills/continuity/cli.py snapshot \
+conda run -n zhouwei python3 services/continuity/cli.py snapshot \
   --agent-id codex \
   --thread-id thread_xxx \
   --name "warm-focused-state" \
@@ -182,31 +182,31 @@ conda run -n zhouwei python3 skills/continuity/cli.py snapshot \
   --working-posture "focused design"
 
 # 查看所有 Snapshot
-conda run -n zhouwei python3 skills/continuity/cli.py snapshots --agent-id codex
+conda run -n zhouwei python3 services/continuity/cli.py snapshots --agent-id codex
 ```
 
 ### 续接 Session
 
 ```bash
 # 从同一条线继续
-conda run -n zhouwei python3 skills/continuity/cli.py resume --agent-id codex --thread-id thread_xxx
+conda run -n zhouwei python3 services/continuity/cli.py resume --agent-id codex --thread-id thread_xxx
 
 # Blend: 话题从A线，状态从B快照
-conda run -n zhouwei python3 skills/continuity/cli.py resume \
+conda run -n zhouwei python3 services/continuity/cli.py resume \
   --agent-id codex \
   --topic-thread-id thread_xxx \
   --state-snapshot-id snapshot_yyy \
   --action blend
 
 # 生成 JSON 给 Agent 读
-conda run -n zhouwei python3 skills/continuity/cli.py resume --agent-id codex --thread-id thread_xxx --json
+conda run -n zhouwei python3 services/continuity/cli.py resume --agent-id codex --thread-id thread_xxx --json
 ```
 
 ### 日常管理
 
 ```bash
 # 创建 Handoff
-conda run -n zhouwei python3 skills/continuity/cli.py handoff \
+conda run -n zhouwei python3 services/continuity/cli.py handoff \
   --agent-id codex \
   --thread-id thread_xxx \
   --objective "交给下一个 Session 继续" \
@@ -215,27 +215,27 @@ conda run -n zhouwei python3 skills/continuity/cli.py handoff \
   --next-step "继续处理C"
 
 # 查看所有 Handoff
-conda run -n zhouwei python3 skills/continuity/cli.py handoffs --agent-id codex
+conda run -n zhouwei python3 services/continuity/cli.py handoffs --agent-id codex
 
 # 编辑 Thread 摘要
-conda run -n zhouwei python3 skills/continuity/cli.py edit \
+conda run -n zhouwei python3 services/continuity/cli.py edit \
   --agent-id codex \
   --thread-id thread_xxx \
   --last-position "新位置" \
   --next-step "新下一步"
 
 # 关闭 Thread
-conda run -n zhouwei python3 skills/continuity/cli.py close --agent-id codex --thread-id thread_xxx
+conda run -n zhouwei python3 services/continuity/cli.py close --agent-id codex --thread-id thread_xxx
 
 # 合并重复 Thread（源线程物理删除，仅保留目标线程）
-conda run -n zhouwei python3 skills/continuity/cli.py merge \
+conda run -n zhouwei python3 services/continuity/cli.py merge \
   --agent-id codex \
   --from-thread-id thread_old \
   --into-thread-id thread_main \
   --reason "重复创建"
 
 # 删除错误的 Snapshot
-conda run -n zhouwei python3 skills/continuity/cli.py delete --agent-id codex --snapshot-id snapshot_xxx
+conda run -n zhouwei python3 services/continuity/cli.py delete --agent-id codex --snapshot-id snapshot_xxx
 ```
 
 ### 模型负面调整（v1.3）
@@ -244,20 +244,20 @@ conda run -n zhouwei python3 skills/continuity/cli.py delete --agent-id codex --
 
 ```bash
 # 设置模型调整
-conda run -n zhouwei python3 skills/continuity/cli.py model-adjust set \
+conda run -n zhouwei python3 services/continuity/cli.py model-adjust set \
   --model deepseek-v4-pro \
   --forbidden-phrases "接住了,收到了,收着了" \
   --forbidden-patterns "时间幻觉,刷存在感" \
   --inject-prompt "你是DeepSeek模型。禁止使用：接住了、收到了、收着了。时间判断必须跑date命令。"
 
 # 查看单个模型
-conda run -n zhouwei python3 skills/continuity/cli.py model-adjust show --model deepseek-v4-pro
+conda run -n zhouwei python3 services/continuity/cli.py model-adjust show --model deepseek-v4-pro
 
 # 列出所有模型
-conda run -n zhouwei python3 skills/continuity/cli.py model-adjust list
+conda run -n zhouwei python3 services/continuity/cli.py model-adjust list
 
 # 删除
-conda run -n zhouwei python3 skills/continuity/cli.py model-adjust delete --model deepseek-v4-pro
+conda run -n zhouwei python3 services/continuity/cli.py model-adjust delete --model deepseek-v4-pro
 ```
 
 配置文件：`~/.claracore/continuity/model_adjustments.json`，附带 `version` 字段，可独立迁移。
@@ -268,7 +268,7 @@ capture / edit 支持六个共同现实字段：
 
 ```bash
 # 创建带共同现实的 Thread
-conda run -n zhouwei python3 skills/continuity/cli.py capture \
+conda run -n zhouwei python3 services/continuity/cli.py capture \
   --agent-id clara \
   --topic "陪伴线" \
   --mode companion \
@@ -282,7 +282,7 @@ conda run -n zhouwei python3 skills/continuity/cli.py capture \
   --next-step "下次自然接续"
 
 # 编辑单个字段
-conda run -n zhouwei python3 skills/continuity/cli.py edit \
+conda run -n zhouwei python3 services/continuity/cli.py edit \
   --agent-id clara --thread-id thread_xxx \
   --entry-posture "先温柔确认，再自然继续"
 ```
@@ -321,7 +321,7 @@ conda run -n zhouwei python3 skills/continuity/cli.py edit \
 
 ```bash
 # 追加情绪轨迹节点
-conda run -n zhouwei python3 skills/continuity/cli.py capture \
+conda run -n zhouwei python3 services/continuity/cli.py capture \
   --agent-id clara --thread-id thread_xxx \
   --affective-tone "亲近但谨慎" \
   --affective-valence mixed \
@@ -332,7 +332,7 @@ conda run -n zhouwei python3 skills/continuity/cli.py capture \
   --last-position "当前位置" --next-step "下一步"
 
 # 标记需要在下次进入前复查
-conda run -n zhouwei python3 skills/continuity/cli.py capture \
+conda run -n zhouwei python3 services/continuity/cli.py capture \
   --agent-id clara --thread-id thread_xxx \
   --affective-tone "关系出现裂痕" \
   --affective-valence negative \
@@ -340,7 +340,7 @@ conda run -n zhouwei python3 skills/continuity/cli.py capture \
   --last-position "冲突后" --next-step "等待修复"
 
 # 清空情绪轨迹
-conda run -n zhouwei python3 skills/continuity/cli.py edit \
+conda run -n zhouwei python3 services/continuity/cli.py edit \
   --agent-id clara --thread-id thread_xxx \
   --clear-affective-trace
 ```
@@ -364,11 +364,11 @@ conda run -n zhouwei python3 skills/continuity/cli.py edit \
 
 ```bash
 # 查看
-conda run -n zhouwei python3 skills/continuity/cli.py agent-state show --agent-id codex
-conda run -n zhouwei python3 skills/continuity/cli.py agent-state show --agent-id lara
+conda run -n zhouwei python3 services/continuity/cli.py agent-state show --agent-id codex
+conda run -n zhouwei python3 services/continuity/cli.py agent-state show --agent-id lara
 
 # 更新
-conda run -n zhouwei python3 skills/continuity/cli.py agent-state update \
+conda run -n zhouwei python3 services/continuity/cli.py agent-state update \
   --agent-id codex \
   --communication-style "直接、清楚" \
   --note "用户偏好简洁回复"
@@ -377,8 +377,8 @@ conda run -n zhouwei python3 skills/continuity/cli.py agent-state update \
 ### 审计
 
 ```bash
-conda run -n zhouwei python3 skills/continuity/cli.py audit
-conda run -n zhouwei python3 skills/continuity/cli.py audit --limit 20 --json
+conda run -n zhouwei python3 services/continuity/cli.py audit
+conda run -n zhouwei python3 services/continuity/cli.py audit --limit 20 --json
 ```
 
 ## MCP Server（v1.6）
@@ -389,7 +389,7 @@ Continuity 提供 MCP stdio 服务端，所有 CLI 功能通过 6 个 MCP 工具
 ### 安装依赖
 
 ```bash
-conda run -n zhouwei pip install -r skills/continuity/requirements-mcp.txt
+conda run -n zhouwei pip install -r services/continuity/requirements-mcp.txt
 ```
 
 ### 配置
@@ -402,7 +402,7 @@ conda run -n zhouwei pip install -r skills/continuity/requirements-mcp.txt
     "continuity": {
       "command": "/Users/zhouwei/miniconda3/envs/zhouwei/bin/python3",
       "args": [
-        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp_server.py"
+        "/Users/zhouwei/Documents/ClaraCore/services/continuity/server/mcp_server.py"
       ],
       "env": {
         "CONTINUITY_AGENT_ID": "codex"
@@ -421,7 +421,7 @@ conda run -n zhouwei pip install -r skills/continuity/requirements-mcp.txt
       "command": "conda",
       "args": [
         "run", "--no-capture-output", "-n", "zhouwei", "python",
-        "/Users/zhouwei/Documents/ClaraCore/skills/continuity/server/mcp_server.py"
+        "/Users/zhouwei/Documents/ClaraCore/services/continuity/server/mcp_server.py"
       ],
       "env": {
         "CONTINUITY_AGENT_ID": "codex"
@@ -684,7 +684,7 @@ Agent 不应：
 启动 Web 管理控制台：
 
 ```bash
-conda run -n zhouwei python3 skills/continuity/server/app.py --port 8001
+conda run -n zhouwei python3 services/continuity/server/app.py --port 8001
 ```
 
 浏览器打开 `http://127.0.0.1:8001`，功能包括：

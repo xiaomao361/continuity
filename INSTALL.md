@@ -28,10 +28,10 @@ conda run -n zhouwei pip install -r requirements-mcp.txt
 cd ~/Documents/ClaraCore
 
 # 验证 CLI 可运行
-conda run -n zhouwei python3 skills/continuity/cli.py --help
+conda run -n zhouwei python3 services/continuity/cli.py --help
 
 # 初始化 Continuity 数据库
-conda run -n zhouwei python3 skills/continuity/cli.py init
+conda run -n zhouwei python3 services/continuity/cli.py init
 ```
 
 初始化后在 `~/.claracore/continuity/` 创建 `continuity.db`。
@@ -52,7 +52,7 @@ Agent State 按 `agent_id` 分别存储，Thread/Snapshot/Handoff 默认只读�
 测试时可以指向临时目录：
 
 ```bash
-CONTINUITY_ROOT=/tmp/continuity-test CONTINUITY_AGENT_ID=test conda run -n zhouwei python3 skills/continuity/cli.py init
+CONTINUITY_ROOT=/tmp/continuity-test CONTINUITY_AGENT_ID=test conda run -n zhouwei python3 services/continuity/cli.py init
 ```
 
 ## SessionStart Hook（可选）
@@ -80,7 +80,7 @@ Hook 脚本在 ClaraCore 已配置，其他 Agent 按需添加。
 ## Web 管理界面
 
 ```bash
-conda run -n zhouwei python3 skills/continuity/server/app.py --port 8001
+conda run -n zhouwei python3 services/continuity/server/app.py --port 8001
 ```
 
 打开 `http://127.0.0.1:8001`。管理界面可以切换 Agent、查看全部 Agent、包含
