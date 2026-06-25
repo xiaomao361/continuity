@@ -3,11 +3,12 @@
 import json
 import os
 import sqlite3
+from dataclasses import asdict
 from typing import Optional
 
 from .config import get_db_path, ensure_directories
 from .models import (
-    AgentState, SessionThread, StateSnapshot, Handoff,
+    AgentState, SessionThread, StateSnapshot, Handoff, ArcArchive,
     now_iso, gen_id,
 )
 
@@ -90,6 +91,17 @@ CREATE TABLE IF NOT EXISTS audit_events (
     target_type TEXT NOT NULL,
     target_id TEXT,
     details TEXT DEFAULT '{}'
+);
+
+CREATE TABLE IF NOT EXISTS arc_archives (
+    archive_id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL,
+    entries TEXT DEFAULT '[]',
+    traces TEXT DEFAULT '[]',
+    from_date TEXT DEFAULT '',
+    to_date TEXT DEFAULT '',
+    archived_at TEXT NOT NULL,
+    FOREIGN KEY (thread_id) REFERENCES session_threads(thread_id)
 );
 """
 
@@ -187,6 +199,11 @@ def _migrate_schema(conn: sqlite3.Connection) -> None:
     _add_column_if_missing(
         conn, "session_threads", "affective_trace",
         "affective_trace TEXT DEFAULT '[]'"
+    )
+    # v1.7 archived arc IDs
+    _add_column_if_missing(
+        conn, "session_threads", "archived_arc_ids",
+        "archived_arc_ids TEXT DEFAULT '[]'"
     )
 
 
@@ -311,6 +328,7 @@ def create_thread(thread: SessionThread, actor: str = "agent") -> dict:
         "boundary_notes": thread.boundary_notes,
         "misread_risks": thread.misread_risks,
         "affective_trace": json.dumps(thread.affective_trace, ensure_ascii=False),
+        "archived_arc_ids": json.dumps(thread.archived_arc_ids, ensure_ascii=False),
     }
     conn.execute(
         """INSERT INTO session_threads
@@ -318,12 +336,12 @@ def create_thread(thread: SessionThread, actor: str = "agent") -> dict:
             last_position, next_step, state_summary, facts_used, current_interpretation,
             interpretation_status, user_confirmed, source_session, tags, notes, updated_by, emotional_arc,
             reality_line, entry_posture, confirmed_ground, provisional_read, boundary_notes, misread_risks,
-            affective_trace)
+            affective_trace, archived_arc_ids)
            VALUES (:thread_id, :version, :agent_id, :visibility, :topic, :mode, :status, :created_at, :last_active_at,
             :last_position, :next_step, :state_summary, :facts_used, :current_interpretation,
             :interpretation_status, :user_confirmed, :source_session, :tags, :notes, :updated_by, :emotional_arc,
             :reality_line, :entry_posture, :confirmed_ground, :provisional_read, :boundary_notes, :misread_risks,
-            :affective_trace)""",
+            :affective_trace, :archived_arc_ids)""",
         d
     )
     _record_audit(conn, actor, "create_thread", "session_thread", thread.thread_id,
@@ -332,7 +350,7 @@ def create_thread(thread: SessionThread, actor: str = "agent") -> dict:
     row = conn.execute("SELECT * FROM session_threads WHERE thread_id = ?",
                        (thread.thread_id,)).fetchone()
     conn.close()
-    return _deserialize_json_fields(_row_to_dict(row), ["facts_used", "tags", "emotional_arc", "affective_trace"])
+    return _deserialize_json_fields(_row_to_dict(row), ["facts_used", "tags", "emotional_arc", "affective_trace", "archived_arc_ids"])
 
 
 def update_thread(thread_id: str, actor: str = "agent", **kwargs) -> Optional[dict]:
@@ -347,6 +365,7 @@ def update_thread(thread_id: str, actor: str = "agent", **kwargs) -> Optional[di
         "reality_line", "entry_posture", "confirmed_ground",
         "provisional_read", "boundary_notes", "misread_risks",
         "affective_trace",
+        "archived_arc_ids",
     }
 
     # Auto-archive old last_position into emotional_arc before overwriting
@@ -412,7 +431,7 @@ def get_thread(thread_id: str, agent_id: Optional[str] = None,
         ).fetchone()
     conn.close()
     result = _row_to_dict(row)
-    return _deserialize_json_fields(result, ["facts_used", "tags", "emotional_arc", "affective_trace"]) if result else None
+    return _deserialize_json_fields(result, ["facts_used", "tags", "emotional_arc", "affective_trace", "archived_arc_ids"]) if result else None
 
 
 def list_threads(status: Optional[str] = None, agent_id: Optional[str] = None,
@@ -440,7 +459,7 @@ def list_threads(status: Optional[str] = None, agent_id: Optional[str] = None,
         params
     ).fetchall()
     conn.close()
-    return [_deserialize_json_fields(_row_to_dict(r), ["facts_used", "tags", "emotional_arc", "affective_trace"]) for r in rows]
+    return [_deserialize_json_fields(_row_to_dict(r), ["facts_used", "tags", "emotional_arc", "affective_trace", "archived_arc_ids"]) for r in rows]
 
 
 def close_thread(thread_id: str, actor: str = "agent") -> Optional[dict]:
@@ -696,6 +715,169 @@ def delete_handoff(handoff_id: str, actor: str = "user") -> bool:
     conn.commit()
     conn.close()
     return True
+
+
+# ── Arc Archives (v1.7) ─────────────────────────────────────
+
+def compact_thread(thread_id: str, keep: int = 10, actor: str = "agent") -> dict:
+    """Compact a thread's emotional_arc and affective_trace.
+
+    Moves old entries into arc_archives, keeping recent ones on the thread.
+    Returns: {"archived": archive_id or None, "kept_arc": N, "kept_at": N, "moved_arc": N, "moved_at": N}
+    """
+    thread = get_thread(thread_id)
+    if not thread:
+        return {"error": f"thread {thread_id} not found"}
+
+    arc = thread.get("emotional_arc", []) or []
+    at = thread.get("affective_trace", []) or []
+
+    if isinstance(arc, str):
+        try:
+            arc = json.loads(arc)
+        except (json.JSONDecodeError, TypeError):
+            arc = []
+    if isinstance(at, str):
+        try:
+            at = json.loads(at)
+        except (json.JSONDecodeError, TypeError):
+            at = []
+
+    # Nothing to compact
+    if len(arc) <= keep:
+        return {"archived": None, "kept_arc": len(arc), "kept_at": len(at),
+                "moved_arc": 0, "moved_at": 0, "reason": f"arc length {len(arc)} <= keep {keep}"}
+
+    # Split arc: old entries move to archive, recent keep stay
+    split_idx = len(arc) - keep
+    old_arc = arc[:split_idx]
+    new_arc = arc[split_idx:]
+
+    # Split affective_trace: confirmed always kept, only keep last `keep` non-confirmed
+    confirmed_at = [n for n in at if n.get("stability") == "confirmed"]
+    transient_at = [n for n in at if n.get("stability") != "confirmed"]
+    if len(transient_at) > keep:
+        old_at = transient_at[:len(transient_at) - keep]
+        new_at = confirmed_at + transient_at[len(transient_at) - keep:]
+    else:
+        old_at = []
+        new_at = confirmed_at + transient_at
+
+    # Determine date range from archived entries
+    def _entry_time(e):
+        return e.get("archived_at", "") or e.get("time", "") or ""
+
+    arc_times = [t for t in (_entry_time(e) for e in old_arc) if t]
+    at_times = [t for t in (_entry_time(e) for e in old_at) if t]
+    all_times = sorted(arc_times + at_times)
+    from_date = all_times[0] if all_times else ""
+    to_date = all_times[-1] if all_times else ""
+
+    # Create archive
+    archive = ArcArchive(
+        archive_id=gen_id("arc"),
+        thread_id=thread_id,
+        entries=old_arc,
+        traces=old_at,
+        from_date=from_date,
+        to_date=to_date,
+        archived_at=now_iso(),
+    )
+
+    # Update thread
+    archived_ids = thread.get("archived_arc_ids", []) or []
+    if isinstance(archived_ids, str):
+        try:
+            archived_ids = json.loads(archived_ids)
+        except (json.JSONDecodeError, TypeError):
+            archived_ids = []
+    archived_ids.append(archive.archive_id)
+
+    conn = _connect()
+    conn.execute(
+        """INSERT INTO arc_archives (archive_id, thread_id, entries, traces, from_date, to_date, archived_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (archive.archive_id, archive.thread_id,
+         json.dumps(archive.entries, ensure_ascii=False),
+         json.dumps(archive.traces, ensure_ascii=False),
+         archive.from_date, archive.to_date, archive.archived_at)
+    )
+    conn.execute(
+        """UPDATE session_threads
+           SET emotional_arc = ?, affective_trace = ?, archived_arc_ids = ?, last_active_at = ?
+           WHERE thread_id = ?""",
+        (json.dumps(new_arc, ensure_ascii=False),
+         json.dumps(new_at, ensure_ascii=False),
+         json.dumps(archived_ids, ensure_ascii=False),
+         now_iso(), thread_id)
+    )
+    _record_audit(conn, actor, "compact_thread", "session_thread", thread_id,
+                  {"archive_id": archive.archive_id, "moved_arc": len(old_arc),
+                   "moved_at": len(old_at), "kept_arc": len(new_arc), "kept_at": len(new_at)})
+    conn.commit()
+    conn.close()
+
+    return {
+        "archived": archive.archive_id,
+        "kept_arc": len(new_arc),
+        "kept_at": len(new_at),
+        "moved_arc": len(old_arc),
+        "moved_at": len(old_at),
+        "from_date": from_date,
+        "to_date": to_date,
+    }
+
+
+def get_archives(thread_id: str) -> list:
+    """List all arc archives for a thread."""
+    conn = _connect()
+    rows = conn.execute(
+        "SELECT * FROM arc_archives WHERE thread_id = ? ORDER BY archived_at DESC",
+        (thread_id,)
+    ).fetchall()
+    conn.close()
+    return [_deserialize_json_fields(_row_to_dict(r), ["entries", "traces"]) for r in rows]
+
+
+def get_archive(archive_id: str) -> Optional[dict]:
+    """Get a single arc archive by ID."""
+    conn = _connect()
+    row = conn.execute(
+        "SELECT * FROM arc_archives WHERE archive_id = ?", (archive_id,)
+    ).fetchone()
+    conn.close()
+    result = _row_to_dict(row)
+    if not result:
+        return None
+    result = _deserialize_json_fields(result, ["entries", "traces"])
+    return asdict(ArcArchive(**result))
+
+
+def list_all_archives(agent_id: Optional[str] = None, include_shared: bool = False,
+                      all_agents: bool = False) -> list:
+    """List all arc archives, optionally scoped to an agent's threads."""
+    conn = _connect()
+    if all_agents:
+        rows = conn.execute(
+            "SELECT * FROM arc_archives ORDER BY archived_at DESC"
+        ).fetchall()
+    else:
+        clauses = []
+        params = []
+        if include_shared:
+            clauses.append("(st.agent_id = ? OR st.visibility = 'shared')")
+        else:
+            clauses.append("st.agent_id = ?")
+        params.append(agent_id)
+        where = " WHERE " + " AND ".join(clauses)
+        rows = conn.execute(
+            f"""SELECT aa.* FROM arc_archives aa
+               INNER JOIN session_threads st ON aa.thread_id = st.thread_id{where}
+               ORDER BY aa.archived_at DESC""",
+            params
+        ).fetchall()
+    conn.close()
+    return [_deserialize_json_fields(_row_to_dict(r), ["entries", "traces"]) for r in rows]
 
 
 # ── Audit ────────────────────────────────────────────────────

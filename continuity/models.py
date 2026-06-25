@@ -60,8 +60,10 @@ class SessionThread:
     provisional_read: str = ""
     boundary_notes: str = ""
     misread_risks: str = ""
-    # v1.5 affective trace — emotional texture, not emotional commands
+    # v1.5 affective trace
     affective_trace: list = field(default_factory=list)
+    # v1.7 archived arc references
+    archived_arc_ids: list = field(default_factory=list)
 
 
 @dataclass
@@ -96,6 +98,18 @@ class Handoff:
     next_step: str = ""
     do_not_confuse: list = field(default_factory=list)
     notes: str = ""
+
+
+@dataclass
+class ArcArchive:
+    """Archived emotional_arc + affective_trace entries from a compacted thread."""
+    archive_id: str = field(default_factory=lambda: gen_id("arc"))
+    thread_id: str = ""
+    entries: list = field(default_factory=list)
+    traces: list = field(default_factory=list)
+    from_date: str = ""
+    to_date: str = ""
+    archived_at: str = field(default_factory=now_iso)
 
 
 @dataclass

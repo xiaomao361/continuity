@@ -34,7 +34,7 @@ from continuity import db, packet as packet_mod
 from continuity.config import get_default_agent_id
 from continuity.models import SessionThread, now_iso
 
-server = Server("continuity", version="1.6.1")
+server = Server("continuity", version="1.7.0")
 
 # ── Helpers ────────────────────────────────────────────────────
 
@@ -306,6 +306,24 @@ _TOOLS = [
         },
     ),
     Tool(
+        name="continuity_compact_thread",
+        description="压缩线程的 emotional_arc 和 affective_trace，将旧条目完整搬入 arc_archives。线上保留最近 N 条。",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "thread_id": {"type": "string", "description": "要压缩的 Thread ID"},
+                "agent_id": {"type": "string", "description": "Agent 标识"},
+                "keep": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "线上保留的最近弧线条数（默认 10）",
+                },
+                "actor": {"type": "string", "default": "mcp"},
+            },
+            "required": ["thread_id"],
+        },
+    ),
+    Tool(
         name="continuity_agent_state",
         description="读取或更新 Agent State（通信风格、关系定位、长期偏好、边界等）。",
         inputSchema={
@@ -501,6 +519,15 @@ async def handle_call_tool(name: str, arguments: dict):
             result = db.close_thread(thread_id, actor=arguments.get("actor", "mcp"))
             if not result:
                 raise ValueError(f"Failed to close thread '{thread_id}'")
+            return [TextContent(type="text", text=_json(result))]
+
+        elif name == "continuity_compact_thread":
+            thread_id = arguments["thread_id"]
+            scope = _scope(arguments)
+            _require_existing_thread(thread_id, scope)
+            keep = int(arguments.get("keep", 10))
+            actor = arguments.get("actor", "mcp")
+            result = db.compact_thread(thread_id, keep=keep, actor=actor)
             return [TextContent(type="text", text=_json(result))]
 
         elif name == "continuity_agent_state":

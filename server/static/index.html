@@ -286,10 +286,11 @@ body {
       <div class="nav-item" data-view="threads"><span class="icon">≡</span>对话线</div>
       <div class="nav-item" data-view="snapshots"><span class="icon">◈</span>状态快照</div>
       <div class="nav-item" data-view="handoffs"><span class="icon">↗</span>任务交接</div>
+      <div class="nav-item" data-view="archives"><span class="icon">📦</span>弧线归档</div>
       <div class="nav-item" data-view="agent-state"><span class="icon">◇</span>长期状态</div>
       <div class="nav-item" data-view="audit"><span class="icon">☷</span>操作审计</div>
     </div>
-    <div class="nav-meta">状态续接 v1</div>
+    <div class="nav-meta">状态续接 v1.7</div>
     <div class="section-card" style="padding:12px;margin-top:14px">
       <div class="form-group">
         <label>当前 Agent</label>
@@ -414,6 +415,7 @@ function showView(view) {
   else if (view === 'threads') loadThreads();
   else if (view === 'snapshots') loadSnapshots();
   else if (view === 'handoffs') loadHandoffs();
+  else if (view === 'archives') loadArchives();
   else if (view === 'agent-state') loadAgentState();
   else if (view === 'audit') loadAudit();
 }
@@ -603,6 +605,10 @@ async function viewThread(id) {
       <div class="detail-row"><span class="detail-label">来源会话</span><span class="detail-value">${esc(t.source_session)}</span></div>
       <div class="detail-row"><span class="detail-label">备注</span><span class="detail-value">${esc(t.notes)}</span></div>
       <div class="detail-row"><span class="detail-label">位置轨迹</span><span class="detail-value">${renderEmotionalArc(t.emotional_arc||[])}</span></div>
+      <div class="detail-row"><span class="detail-label">📦 归档</span><span class="detail-value">
+        ${(t.archived_arc_ids||[]).length ? (t.archived_arc_ids||[]).map(aid => '<span class="meta-chip" style="cursor:pointer" onclick="viewArchive(\''+aid+'\')">📋 '+aid.slice(0,18)+'</span>').join(' ') : '<span style="color:var(--text-muted)">暂无</span>'}
+        ${(t.emotional_arc||[]).length > 10 ? '<button class="btn btn-sm" style="margin-left:8px" onclick="compactThread(\''+t.thread_id+'\')">📦 压缩</button>' : ''}
+      </span></div>
       <div class="detail-row"><span class="detail-label">🎭 情绪轨迹</span><span class="detail-value">${renderAffectiveTrace(t.affective_trace||[])}</span></div>
       <div class="detail-row"><span class="detail-label">💫 共同现实线</span><span class="detail-value">${esc(t.reality_line||'')}</span></div>
       <div class="detail-row"><span class="detail-label">🚪 进入姿态</span><span class="detail-value">${esc(t.entry_posture||'')}</span></div>
@@ -719,7 +725,42 @@ async function clearAffectiveTrace(id) {
     method: 'PUT', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({affective_trace: []})
   });
-  showThread(id);
+  viewThread(id);
+}
+
+
+async function compactThread(id) {
+  if (!confirm('确定压缩这条线的弧线历史？旧条目将完整搬入归档，随时可查。')) return;
+  const result = await apiFetch(scoped('/api/threads/' + id + '/compact'), {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({keep: 10})
+  });
+  if (result.archived) {
+    alert('压缩完成。\n归档: ' + result.archived + '\n搬入: ' + result.moved_arc + ' 条位置 + ' + result.moved_at + ' 条情绪\n保留: ' + result.kept_arc + ' 条位置 + ' + result.kept_at + ' 条情绪');
+  } else {
+    alert('无需压缩: ' + (result.reason || 'arc 长度未超过保留阈值'));
+  }
+  viewThread(id);
+}
+
+
+async function viewArchive(id) {
+  const a = await apiFetch('/api/archives/' + id);
+  document.getElementById('main-content').innerHTML = `
+    <div class="view-head">
+      <div class="view-kicker">归档详情</div>
+      <div class="page-title">${esc(a.archive_id)}</div>
+      <div class="page-subtitle">${a.from_date ? esc(a.from_date.slice(0,19)) : '?'} → ${a.to_date ? esc(a.to_date.slice(0,19)) : '?'}</div>
+    </div>
+    <div class="detail-panel">
+      <div class="detail-row"><span class="detail-label">关联线程</span><span class="detail-value"><a href="javascript:void(0)" onclick="viewThread('${esc(a.thread_id)}')" style="color:var(--accent)">${esc(a.thread_id)}</a></span></div>
+      <div class="detail-row"><span class="detail-label">创建时间</span><span class="detail-value">${esc((a.archived_at||'').slice(0,19))}</span></div>
+      <div class="detail-row"><span class="detail-label">位置轨迹</span><span class="detail-value">${renderEmotionalArc(a.entries||[])}</span></div>
+      <div class="detail-row"><span class="detail-label">🎭 情绪轨迹</span><span class="detail-value">${renderAffectiveTrace(a.traces||[])}</span></div>
+      <div style="margin-top:16px">
+        <button class="btn" onclick="viewThread('${esc(a.thread_id)}')">← 返回对话线</button>
+      </div>
+    </div>`;
 }
 
 
@@ -948,6 +989,38 @@ async function editAgentStateModal() {
     });
     loadAgentState();
   });
+}
+
+// ═══ 弧线归档 ════════════════════════════════════════════════
+async function loadArchives() {
+  const data = await apiFetch(scoped('/api/archives'));
+  document.getElementById('main-content').innerHTML = `
+    <div class="view-head">
+      <div class="view-kicker">弧线归档</div>
+      <div class="page-title">所有弧线归档</div>
+    </div>
+    <div class="section-card">
+      <div class="table-list">${renderArchiveList(data.archives)}</div>
+    </div>`;
+}
+
+function renderArchiveList(archives) {
+  if (!archives || !archives.length) return '<div class="empty-state">暂无弧线归档</div>';
+  return archives.map(a => `
+    <div class="table-card">
+      <div class="table-head">
+        <div class="table-title">${esc(a.archive_id)}</div>
+        <span style="font-size:11px;color:var(--text-muted)">${esc((a.archived_at||'').slice(0,19))}</span>
+      </div>
+      <div class="meta-row">
+        ${chip('线程: '+esc((a.thread_id||'').slice(0,22)))}
+        ${a.from_date ? chip(esc(a.from_date.slice(0,10)) +' → '+ esc(a.to_date.slice(0,10))) : ''}
+        ${chip((a.entries||[]).length + ' 位置 + ' + (a.traces||[]).length + ' 情绪')}
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-sm" onclick="viewArchive('${esc(a.archive_id)}')">详情</button>
+      </div>
+    </div>`).join('');
 }
 
 // ═══ 操作审计 ════════════════════════════════════════════════

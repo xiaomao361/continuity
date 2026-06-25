@@ -285,6 +285,17 @@ Agent 读取注入的 `<!-- CONTINUITY_RECALL -->` 数据，判断最匹配的 T
 
 ## Changelog
 
+### v1.7.0 (2026-06-25)
+
+- **Arc Archive（弧线归档）**：`compact` 命令将旧的 emotional_arc / affective_trace
+  条目完整搬入 `arc_archives` 表，保留完整历史。线上保留最近 N 条（默认 10）。
+- `compact` 命令：CLI / MCP / Web API 三通道支持
+- `show --archived`：查看某条线的所有归档
+- `archived_arc_ids` 字段：线程与归档的关联引用
+- Web 界面：新增"弧线归档"独立列表页，线程详情页展示归档徽章 + 压缩按钮
+- `arc_archives` 表：entries / traces / from_date / to_date，完整保存原始条目
+- `affective_trace` 的 `confirmed` 节点永不被 compact 移走
+
 ### v1.6.1 (2026-06-23)
 
 - **fix**: SQLite 连接加 `timeout=10` + `PRAGMA journal_mode=WAL`，解决

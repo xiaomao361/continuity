@@ -315,6 +315,32 @@ conda run -n zhouwei python3 services/continuity/cli.py edit \
 - CLI：`--full-arc`
 - MCP：`{"full_arc": true}`
 
+### 弧线归档（v1.7）
+
+`compact` 命令将线程的旧 emotional_arc / affective_trace 条目完整搬入 `arc_archives` 表，
+线上保留最近 N 条（默认 10）。数据不丢失——归档随时可查。
+
+```bash
+# Compact 一条线（默认保留 10 条）
+conda run -n zhouwei python3 services/continuity/cli.py compact \
+  --agent-id lara --thread-id thread_xxx --keep 10
+
+# 跨 Agent compact（管理模式）
+conda run -n zhouwei python3 services/continuity/cli.py compact \
+  --all-agents --thread-id thread_xxx --keep 10
+
+# 查看某条线的所有归档
+conda run -n zhouwei python3 services/continuity/cli.py show \
+  --agent-id lara --thread-id thread_xxx --archived
+```
+
+特性：
+- **完整搬家**：旧条目原样保留在 `arc_archives`，不丢任何内容
+- **confirmed 保护**：`affective_trace` 的 `confirmed` 节点永不被移走
+- **关联引用**：线程的 `archived_arc_ids` 记录所有归档 ID
+- **无操作安全**：arc 长度 ≤ keep 时自动跳过
+- **三通道支持**：CLI / MCP（`continuity_compact_thread`）/ Web API（`POST /api/threads/{id}/compact`）
+
 ### 情绪轨迹（v1.5）
 
 记录共同现实线上的情绪质地变化。不是情绪状态机——情绪可以混合，不使用固定枚举。
@@ -381,9 +407,9 @@ conda run -n zhouwei python3 services/continuity/cli.py audit
 conda run -n zhouwei python3 services/continuity/cli.py audit --limit 20 --json
 ```
 
-## MCP Server（v1.6）
+## MCP Server（v1.7）
 
-Continuity 提供 MCP stdio 服务端，所有 CLI 功能通过 6 个 MCP 工具暴露。MCP server
+Continuity 提供 MCP stdio 服务端，所有 CLI 功能通过 7 个 MCP 工具暴露。MCP server
 是现有 Python 函数的薄封装，不引入额外逻辑。Claude Code 等 MCP 客户端可直接挂载。
 
 ### 安装依赖
@@ -440,6 +466,7 @@ conda run -n zhouwei pip install -r services/continuity/requirements-mcp.txt
 | `continuity_resume` | 生成续接包（Continuity Packet），含共同现实、情绪轨迹、模型负面调整 |
 | `continuity_capture_thread` | 创建或更新一条 Session Thread。更新时旧 last_position 自动归档 |
 | `continuity_close_thread` | 关闭一条 Thread（不删除数据） |
+| `continuity_compact_thread` | 压缩线程弧线历史，旧条目完整搬入 `arc_archives` |
 | `continuity_agent_state` | 读取或更新 Agent State（通信风格、关系定位、长期偏好、边界等） |
 
 ### 工具参数详解
@@ -697,6 +724,7 @@ conda run -n zhouwei python3 services/continuity/server/app.py --port 8001
 - **Threads**：支持查看位置轨迹（底层兼容字段 `emotional_arc`），倒序展示每条归档的时间戳和位置
 - **Snapshots**：Agent 彩标 + 共享标记 + 详情/编辑/删除
 - **Handoffs**：Agent 彩标 + 详情/删除
+- **Archives**：弧线归档列表，含关联线程、时间范围、条目统计，可点击查看完整归档详情
 - **Agent State**：查看和编辑当前 Agent 长期状态
 - **Audit**：操作审计日志
 - 所有设置自动保存到浏览器 localStorage

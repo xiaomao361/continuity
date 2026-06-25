@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Continuity v1 CLI — State continuation for ClaraCore agents."""
+"""Continuity v1.7 CLI — State continuation for ClaraCore agents."""
 
 import argparse
 import json
@@ -246,6 +246,25 @@ def cmd_list(args):
 def cmd_show(args):
     """Show thread, snapshot, or handoff details."""
     if args.thread_id:
+        if args.archived:
+            archives = db.get_archives(args.thread_id)
+            if args.json:
+                print(json.dumps(archives, ensure_ascii=False, indent=2))
+            else:
+                if not archives:
+                    print(f"No arc archives for thread '{args.thread_id}'")
+                else:
+                    print(f"Arc Archives for thread '{args.thread_id}' ({len(archives)} total):")
+                    print()
+                    for a in archives:
+                        entries = a.get("entries", []) or []
+                        traces = a.get("traces", []) or []
+                        print(f"  Archive: {a['archive_id']}")
+                        print(f"    Range:  {a['from_date']} → {a['to_date']}")
+                        print(f"    Entries:{len(entries)} emotional_arc + {len(traces)} affective_trace")
+                        print(f"    Created:{a['archived_at']}")
+                        print()
+            return
         t = db.get_thread(args.thread_id, agent_id=_scope_agent_id(args),
                           include_shared=args.include_shared, all_agents=args.all_agents)
         if not t:
@@ -557,6 +576,25 @@ def cmd_merge(args):
     print(f"  Source deleted. Main thread topic: {result['topic']}")
 
 
+def cmd_compact(args):
+    """Compact a thread's emotional_arc and affective_trace into arc archives."""
+    if not db.get_thread(args.thread_id, agent_id=_scope_agent_id(args),
+                         include_shared=args.include_shared,
+                         all_agents=args.all_agents):
+        print(f"Thread '{args.thread_id}' not found", file=sys.stderr)
+        sys.exit(1)
+    result = db.compact_thread(args.thread_id, keep=args.keep, actor=args.actor)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    elif result.get("archived"):
+        print(f"Compact: {result['archived']}")
+        print(f"  Moved:  {result['moved_arc']} arc + {result['moved_at']} affective → archive")
+        print(f"  Kept:   {result['kept_arc']} arc + {result['kept_at']} affective")
+        print(f"  Range:  {result['from_date']} → {result['to_date']}")
+    else:
+        print(f"Nothing to compact: {result.get('reason', 'unknown')}")
+
+
 def cmd_model_adjust(args):
     """Manage per-model negative adjustments."""
     action = args.action  # set | show | list | delete
@@ -864,6 +902,8 @@ def main():
     p_show.add_argument("--thread-id", help="Thread ID to show")
     p_show.add_argument("--snapshot-id", help="Snapshot ID to show")
     p_show.add_argument("--handoff-id", help="Handoff ID to show")
+    p_show.add_argument("--archived", action="store_true",
+                        help="Show arc archives for the thread (requires --thread-id)")
     _add_agent_args(p_show, filters=True)
 
     # snapshot
@@ -962,6 +1002,15 @@ def main():
     p_merge.add_argument("--actor", default="user", help="Who is performing this action")
     _add_agent_args(p_merge, filters=True)
 
+    # compact
+    p_compact = sub.add_parser("compact", help="Compact a thread's emotional_arc and affective_trace")
+    p_compact.add_argument("--thread-id", required=True, help="Thread ID to compact")
+    p_compact.add_argument("--keep", type=int, default=10,
+                           help="Number of recent arc entries to keep (default: 10)")
+    p_compact.add_argument("--actor", default="agent", help="Who is performing this action")
+    p_compact.add_argument("--json", action="store_true", help="Output in JSON format")
+    _add_agent_args(p_compact, filters=True)
+
     # model-adjust
     p_ma = sub.add_parser("model-adjust", help="Manage per-model negative adjustments")
     p_ma_sub = p_ma.add_subparsers(dest="action", help="Action")
@@ -1034,6 +1083,7 @@ def main():
         "close": cmd_close,
         "edit": cmd_edit,
         "merge": cmd_merge,
+        "compact": cmd_compact,
         "model-adjust": cmd_model_adjust,
         "agent-state": cmd_agent_state,
         "audit": cmd_audit,

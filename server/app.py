@@ -7,13 +7,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
-import json
-
 from continuity import db, model_adjustments
 from continuity.config import get_default_agent_id
 from continuity.models import now_iso
 
-app = FastAPI(title="Continuity", version="1.4")
+app = FastAPI(title="Continuity", version="1.7.0")
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -206,6 +204,54 @@ async def close_thread(
     if not result:
         raise HTTPException(status_code=404, detail="Thread not found")
     return result
+
+
+@app.post("/api/threads/{thread_id}/compact")
+async def compact_thread(
+    thread_id: str,
+    body: dict,
+    agent_id: str = Query(default=None),
+    include_shared: bool = Query(default=False),
+    all_agents: bool = Query(default=False),
+):
+    if not db.get_thread(thread_id, **_agent_scope(agent_id, include_shared, all_agents)):
+        raise HTTPException(status_code=404, detail="Thread not found")
+    keep = body.get("keep", 10)
+    result = db.compact_thread(thread_id, keep=keep, actor="user")
+    return result
+
+
+@app.get("/api/threads/{thread_id}/archives")
+async def get_thread_archives(
+    thread_id: str,
+    agent_id: str = Query(default=None),
+    include_shared: bool = Query(default=False),
+    all_agents: bool = Query(default=False),
+):
+    if not db.get_thread(thread_id, **_agent_scope(agent_id, include_shared, all_agents)):
+        raise HTTPException(status_code=404, detail="Thread not found")
+    return {"archives": db.get_archives(thread_id)}
+
+
+@app.get("/api/archives")
+async def list_archives(
+    agent_id: str = Query(default=None),
+    include_shared: bool = Query(default=False),
+    all_agents: bool = Query(default=False),
+):
+    """List all arc archives, optionally scoped to an agent's threads."""
+    agent = agent_id or get_default_agent_id()
+    archives = db.list_all_archives(agent_id=agent, include_shared=include_shared,
+                                     all_agents=all_agents)
+    return {"archives": archives}
+
+
+@app.get("/api/archives/{archive_id}")
+async def get_archive(archive_id: str):
+    a = db.get_archive(archive_id)
+    if not a:
+        raise HTTPException(status_code=404, detail="Archive not found")
+    return a
 
 
 @app.post("/api/threads/merge")
