@@ -1,4 +1,4 @@
-# Continuity Protocol v1.6.1
+# Continuity Protocol v1.7.0
 
 Continuity 是 ClaraCore 里的状态续接层。
 
@@ -118,7 +118,7 @@ Continuity 回答：
 Agent 可以自己决定什么时候取记忆、写记忆。Continuity 不应该把"记忆调用"做成
 自己的核心流程。
 
-当前 v1.6.1 边界：
+当前 v1.7.0 边界：
 
 ```text
 Memoria 存事实。
